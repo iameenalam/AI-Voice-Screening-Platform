@@ -1,20 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Logo } from "@/components/Logo";
-import { useNavigate } from "react-router-dom";
-import { Sparkles, Plus, X } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Sparkles, Plus, X, Loader2, ArrowRight } from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const ScreeningSetup = () => {
   const navigate = useNavigate();
-  const [questions, setQuestions] = useState([
-    "Tell me about your experience with Python.",
-    "Describe a challenge you faced in a team setting.",
-    "Why are you interested in this role?",
-  ]);
+  const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [questions, setQuestions] = useState<string[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
+  const candidateId = location.state?.candidateId || localStorage.getItem('currentCandidateId');
+  const role = location.state?.role || '';
+
+  useEffect(() => {
+    if (role) {
+      loadSuggestedQuestions();
+    } else {
+      // Default questions if no role
+      setQuestions([
+        "Tell me about your experience with this role.",
+        "Describe a challenge you faced in a team setting.",
+        "Why are you interested in this position?",
+      ]);
+    }
+  }, [role]);
+
+  const loadSuggestedQuestions = async () => {
+    setGenerating(true);
+    const result = await api.generateQuestions(role);
+    setGenerating(false);
+    
+    if (result.data?.questions) {
+      setQuestions(result.data.questions);
+    } else {
+      // Fallback questions
+      setQuestions([
+        "Tell me about your experience with this role.",
+        "Describe a challenge you faced in a team setting.",
+        "Why are you interested in this position?",
+      ]);
+    }
+  };
 
   const handleAddQuestion = () => {
     if (newQuestion.trim()) {
@@ -27,35 +61,55 @@ const ScreeningSetup = () => {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
-    navigate("/mic-test");
+  const handleSubmit = async () => {
+    if (questions.length === 0) {
+      toast.error("Please add at least one question");
+      return;
+    }
+
+    if (!candidateId) {
+      toast.error("Candidate information missing. Please go back and upload CV again.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await api.createInterview(candidateId, questions);
+    setLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.data) {
+      localStorage.setItem('currentInterviewId', result.data._id);
+      navigate("/mic-test", { state: { interviewId: result.data._id } });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <Logo />
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar showUserMenu />
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Set Up Screening Questions</h1>
-            <p className="text-muted-foreground">
+          <div className="mb-6 md:mb-8 animate-fade-in">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              Set Up Screening Questions
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               Customize questions or use our AI-suggested ones for your interview
             </p>
           </div>
 
           <div className="grid gap-6">
-            <Card className="p-6 bg-card/50 backdrop-blur-sm card-shadow">
+            <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold">AI Suggested Questions</h3>
+                <h3 className="font-semibold text-base md:text-lg">AI Suggested Questions</h3>
+                {generating && (
+                  <Loader2 className="h-4 w-4 text-primary animate-spin ml-2" />
+                )}
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                These questions are tailored for the Frontend Developer role
+              <p className="text-xs md:text-sm text-muted-foreground mb-4">
+                {role ? `These questions are tailored for the ${role} role` : "AI-generated interview questions"}
               </p>
 
               <div className="space-y-3">
@@ -81,8 +135,8 @@ const ScreeningSetup = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-card/50 backdrop-blur-sm card-shadow">
-              <h3 className="font-semibold mb-4">Add Custom Question</h3>
+            <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+              <h3 className="font-semibold mb-4 text-base md:text-lg">Add Custom Question</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-question">Question</Label>
@@ -107,14 +161,17 @@ const ScreeningSetup = () => {
 
             <Button
               onClick={handleSubmit}
-              className="w-full bg-cta hover:bg-cta/90"
+              className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
               size="lg"
+              disabled={loading || questions.length === 0}
             >
-              Continue to Mic Test
+              {loading ? "Creating Interview..." : "Continue to Mic Test"}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

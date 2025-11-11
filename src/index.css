@@ -83,6 +83,44 @@ All colors MUST be HSL.
     background: var(--gradient-card);
   }
 
+  /* Card shadow utility */
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Smooth animations */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  }
+
   .bg-gradient-glow {
     background: var(--gradient-glow);
   }
@@ -90,10 +128,6 @@ All colors MUST be HSL.
   /* Glow effects */
   .glow {
     box-shadow: var(--shadow-glow);
-  }
-
-  .card-shadow {
-    box-shadow: var(--shadow-card);
   }
 
   /* Animations */
@@ -108,14 +142,5 @@ All colors MUST be HSL.
 
   .animate-wave {
     animation: wave 1s ease-in-out infinite;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
   }
 }

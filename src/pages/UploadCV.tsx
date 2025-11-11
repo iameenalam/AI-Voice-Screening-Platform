@@ -3,67 +3,109 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Logo } from "@/components/Logo";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
-import { Upload, CheckCircle2 } from "lucide-react";
+import { Upload, CheckCircle2, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const UploadCV = () => {
   const navigate = useNavigate();
   const [extracted, setExtracted] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [candidateData, setCandidateData] = useState({
     name: "",
     role: "",
     phone: "",
     email: "",
   });
+  const [candidateId, setCandidateId] = useState<string | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setTimeout(() => {
+      setUploading(true);
+      
+      const result = await api.uploadCV(e.target.files[0]);
+      
+      if (result.error) {
+        toast.error(result.error);
+        setUploading(false);
+        return;
+      }
+
+      if (result.data) {
         setCandidateData({
-          name: "Ali Khan",
-          role: "Frontend Developer",
-          phone: "+92 300 1234567",
-          email: "alikhan@email.com",
+          name: result.data.name || "",
+          role: result.data.role || "",
+          phone: result.data.phone || "",
+          email: result.data.email || "",
         });
         setExtracted(true);
-      }, 1500);
+        toast.success("CV extracted successfully!");
+      }
+      
+      setUploading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/screening-setup");
+    
+    if (!candidateData.name || !candidateData.role || !candidateData.email) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    const result = await api.createCandidate(candidateData);
+    
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    if (result.data) {
+      setCandidateId(result.data._id);
+      localStorage.setItem('currentCandidateId', result.data._id);
+      navigate("/screening-setup", { state: { candidateId: result.data._id, role: candidateData.role } });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <Logo />
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar showUserMenu />
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Upload Candidate CV</h1>
-            <p className="text-muted-foreground">
+          <div className="mb-6 md:mb-8 animate-fade-in">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              Upload Candidate CV
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               We'll automatically extract candidate information to set up the interview
             </p>
           </div>
 
-          <Card className="p-8 bg-card/50 backdrop-blur-sm card-shadow">
+          <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
             <form onSubmit={handleSubmit} className="space-y-6">
               {!extracted ? (
                 <div className="space-y-4">
                   <Label htmlFor="cv-upload" className="cursor-pointer">
-                    <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors">
-                      <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-lg mb-2">Click to upload CV</p>
-                      <p className="text-sm text-muted-foreground">
-                        PDF, DOC, or DOCX (Max 10MB)
-                      </p>
+                    <div className="border-2 border-dashed border-border rounded-lg p-8 md:p-12 text-center hover:border-primary/50 transition-colors">
+                      {uploading ? (
+                        <>
+                          <Loader2 className="h-12 w-12 mx-auto mb-4 text-primary animate-spin" />
+                          <p className="text-lg mb-2">Extracting information...</p>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-10 md:h-12 w-10 md:w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-base md:text-lg mb-2">Click to upload CV</p>
+                          <p className="text-xs md:text-sm text-muted-foreground">
+                            PDF, DOC, or DOCX (Max 10MB)
+                          </p>
+                        </>
+                      )}
                     </div>
                     <Input
                       id="cv-upload"
@@ -71,6 +113,7 @@ const UploadCV = () => {
                       className="hidden"
                       accept=".pdf,.doc,.docx"
                       onChange={handleFileUpload}
+                      disabled={uploading}
                     />
                   </Label>
 
@@ -152,6 +195,7 @@ const UploadCV = () => {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

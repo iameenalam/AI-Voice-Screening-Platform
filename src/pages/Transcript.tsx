@@ -1,71 +1,94 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Logo } from "@/components/Logo";
-import { useNavigate } from "react-router-dom";
-import { Download, ArrowLeft } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Download, ArrowLeft, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const Transcript = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const interviewId = location.state?.interviewId || localStorage.getItem('currentInterviewId');
+  const [loading, setLoading] = useState(true);
+  const [interview, setInterview] = useState<any>(null);
 
-  const transcript = [
-    {
-      speaker: "AI",
-      text: "Hello! Thank you for joining this interview. Let's get started. Tell me about your experience with Python.",
-      time: "00:00",
-    },
-    {
-      speaker: "Candidate",
-      text: "I have been working with Python for over 3 years, primarily in web development using Django and Flask. I've built several REST APIs and worked on data processing pipelines using pandas and numpy. Most recently, I developed a microservices architecture for a fintech company.",
-      time: "00:15",
-    },
-    {
-      speaker: "AI",
-      text: "That sounds impressive. Can you describe a challenge you faced in a team setting?",
-      time: "00:45",
-    },
-    {
-      speaker: "Candidate",
-      text: "In my previous role, we faced a tight deadline for a major feature release. I coordinated with team members to break down tasks and established clear communication channels through daily standups. We also implemented pair programming sessions which improved code quality and knowledge sharing.",
-      time: "01:00",
-    },
-    {
-      speaker: "AI",
-      text: "Excellent teamwork approach. Finally, why are you interested in this role?",
-      time: "01:35",
-    },
-    {
-      speaker: "Candidate",
-      text: "I'm excited about the opportunity to work on cutting-edge AI products. Your company's mission aligns with my passion for using technology to solve real-world problems. I'm particularly interested in your recent work on natural language processing and would love to contribute my Python and API development experience to these projects.",
-      time: "01:45",
-    },
-  ];
+  useEffect(() => {
+    if (interviewId) {
+      loadInterview();
+    } else {
+      toast.error("Interview not found");
+      navigate("/dashboard");
+    }
+  }, [interviewId]);
+
+  const loadInterview = async () => {
+    if (!interviewId) return;
+    
+    setLoading(true);
+    const result = await api.getInterview(interviewId);
+    setLoading(false);
+    
+    if (result.error) {
+      toast.error(result.error);
+      navigate("/dashboard");
+    } else if (result.data) {
+      setInterview(result.data);
+    }
+  };
+
+  const formatTime = (timestamp: number) => {
+    const totalSeconds = Math.floor(timestamp / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!interview) {
+    return null;
+  }
+
+  const transcript = interview.transcript || [];
+  const candidateName = interview.candidateId?.name || 'Candidate';
+  const candidateRole = interview.candidateId?.role || '';
 
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <Logo />
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar showUserMenu />
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
             <div>
-              <h1 className="text-4xl font-bold mb-2">Full Interview Transcript</h1>
-              <p className="text-muted-foreground">Ali Khan - Frontend Developer</p>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                Full Interview Transcript
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                {candidateName} {candidateRole ? `- ${candidateRole}` : ''}
+              </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <Button
-                onClick={() => navigate("/results")}
+                onClick={() => navigate("/results", { state: { interviewId } })}
                 variant="outline"
+                className="w-full sm:w-auto"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
               <Button
-                onClick={() => navigate("/download")}
-                className="bg-cta hover:bg-cta/90"
+                onClick={() => navigate("/download", { state: { interviewId } })}
+                className="bg-cta hover:bg-cta/90 w-full sm:w-auto"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export
@@ -73,30 +96,35 @@ const Transcript = () => {
             </div>
           </div>
 
-          <Card className="p-8 bg-card/50 backdrop-blur-sm card-shadow">
-            <div className="space-y-6">
-              {transcript.map((item, index) => (
-                <div
-                  key={index}
-                  className={`flex gap-4 p-4 rounded-lg ${
-                    item.speaker === "AI"
-                      ? "bg-primary/5"
-                      : "bg-accent/50"
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-24 text-sm text-muted-foreground">
-                    <div className="font-semibold mb-1">{item.speaker}</div>
-                    <div>{item.time}</div>
+          <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+            <div className="space-y-4 md:space-y-6">
+              {transcript.length > 0 ? (
+                transcript.map((item: any, index: number) => (
+                  <div
+                    key={index}
+                    className={`flex flex-col sm:flex-row gap-3 sm:gap-4 p-4 rounded-lg ${
+                      item.speaker === "AI"
+                        ? "bg-primary/5"
+                        : "bg-accent/50"
+                    }`}
+                  >
+                    <div className="flex-shrink-0 sm:w-24 text-xs sm:text-sm text-muted-foreground">
+                      <div className="font-semibold mb-1">{item.speaker}</div>
+                      <div>{formatTime(item.timestamp || Date.now())}</div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm md:text-base">{item.text}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p>{item.text}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No transcript available yet.</p>
+              )}
             </div>
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
