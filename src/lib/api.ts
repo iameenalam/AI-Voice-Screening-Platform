@@ -120,6 +120,7 @@ class ApiClient {
     role: string;
     email: string;
     phone?: string;
+    fullRole?: string;
     cvUrl?: string;
     extractedData?: any;
   }) {

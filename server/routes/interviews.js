@@ -40,7 +40,7 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       });
     }
 
-    const prompt = `Generate 3-5 professional interview questions for a ${role} position. Return only the questions, one per line, without numbering or bullets.`;
+    const prompt = `Generate 3-5 professional interview questions for a ${fullRole} position. Return only the questions, one per line, without numbering or bullets.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',

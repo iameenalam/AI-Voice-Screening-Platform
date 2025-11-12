@@ -14,15 +14,23 @@ const Interview = () => {
   const location = useLocation();
   const interviewId = location.state?.interviewId || localStorage.getItem('currentInterviewId');
   
-  const [isActive, setIsActive] = useState(true);
+  const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timer, setTimer] = useState(0);
-  const [sentiment, setSentiment] = useState(0.72);
+  const [sentiment, setSentiment] = useState(0);
   const [questions, setQuestions] = useState<string[]>([]);
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const [currentResponse, setCurrentResponse] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [responses, setResponses] = useState<string[]>([]);
+  
+  const mediaStreamRef = useState<any>(null);
+  const audioContextRef = useState<any>(null);
+  const analyserRef = useState<any>(null);
+  const animationFrameRef = useState<any>(null);
 
   useEffect(() => {
     if (!interviewId) {
@@ -73,88 +81,170 @@ const Interview = () => {
     }
   };
 
-  const startVoiceRecognition = () => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+  const startVoiceRecognition = async () => {
+    try {
+      // Start microphone for audio visualization
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef[0] = stream;
 
-      recognition.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
+      const audioContext = new AudioContext();
+      audioContextRef[0] = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyserRef[0] = analyser;
+      analyser.fftSize = 256;
+      
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
-          } else {
-            interimTranscript += transcript;
+      // Monitor audio levels
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const checkAudioLevel = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a: number, b: number) => a + b) / dataArray.length;
+        setAudioLevel(average);
+        setIsActive(average > 10); // Activate visualizer when speaking
+        animationFrameRef[0] = requestAnimationFrame(checkAudioLevel);
+      };
+      checkAudioLevel();
+
+      // Start speech recognition
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' ';
+            } else {
+              interimTranscript += transcript;
+            }
           }
-        }
 
-        setCurrentResponse(finalTranscript || interimTranscript);
-      };
+          const fullTranscript = finalTranscript || interimTranscript;
+          setCurrentResponse(fullTranscript);
+          
+          // Update recording state based on speech
+          if (fullTranscript.trim()) {
+            setIsRecording(true);
+          }
+        };
 
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-      };
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          if (event.error === 'no-speech') {
+            // Restart recognition if it stops due to silence
+            setTimeout(() => {
+              if (interviewStarted) {
+                recognition.start();
+              }
+            }, 1000);
+          }
+        };
 
-      recognition.start();
-      setRecognition(recognition);
-    } else {
-      toast.error("Speech recognition not supported in this browser");
+        recognition.onend = () => {
+          // Auto-restart recognition if interview is still in progress
+          if (interviewStarted) {
+            setTimeout(() => recognition.start(), 100);
+          }
+        };
+
+        recognition.start();
+        setRecognition(recognition);
+      } else {
+        toast.error("Speech recognition not supported in this browser");
+      }
+    } catch (error) {
+      console.error('Failed to start voice recognition:', error);
+      toast.error("Failed to access microphone");
     }
+  };
+
+  // Simple sentiment analysis based on keywords
+  const analyzeSentiment = (text: string): number => {
+    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'enjoy', 'happy', 'successful', 'achieved', 'accomplished', 'proud', 'excited', 'passionate', 'innovative', 'creative', 'efficient', 'effective', 'skilled'];
+    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'difficult', 'problem', 'issue', 'failed', 'struggle', 'hard', 'challenging', 'unfortunately', 'disappointed'];
+    
+    const words = text.toLowerCase().split(/\s+/);
+    let score = 0.5; // Neutral baseline
+    
+    words.forEach(word => {
+      if (positiveWords.includes(word)) score += 0.05;
+      if (negativeWords.includes(word)) score -= 0.05;
+    });
+    
+    // Word count bonus (longer responses tend to be more engaged)
+    if (words.length > 50) score += 0.1;
+    if (words.length > 100) score += 0.1;
+    
+    return Math.max(0, Math.min(1, score)); // Clamp between 0 and 1
   };
 
   const askQuestion = async (index: number) => {
     if (index >= questions.length) {
-      await completeInterview();
       return;
     }
 
     const question = questions[index];
-    await api.addTranscriptEntry(interviewId!, 'AI', question, Date.now(), index);
+    setCurrentResponse("");
+    setIsRecording(false);
     
-    // Wait for response (simulated - in real app, you'd wait for user to finish speaking)
-    setTimeout(async () => {
-      if (currentResponse.trim()) {
-        await api.addTranscriptEntry(interviewId!, 'Candidate', currentResponse, Date.now(), index);
-        
-        // Analyze response
-        const analysis = await api.analyzeResponse(interviewId!, question, currentResponse);
-        if (analysis.data) {
-          setSentiment(analysis.data.sentiment);
-        }
-        
-        setCurrentResponse("");
-        
-        // Move to next question after a delay
-        if (index < questions.length - 1) {
-          setTimeout(() => {
-            setCurrentQuestion(index + 1);
-            askQuestion(index + 1);
-          }, 2000);
-        } else {
-          await completeInterview();
-        }
-      } else {
-        // No response, move to next question
-        if (index < questions.length - 1) {
-          setCurrentQuestion(index + 1);
-          askQuestion(index + 1);
-        } else {
-          await completeInterview();
-        }
-      }
-    }, 30000); // 30 seconds per question
+    // Save question to transcript
+    await api.addTranscriptEntry(interviewId!, 'AI', question, Date.now(), index);
   };
 
-  const completeInterview = async () => {
+  const handleNextQuestion = async () => {
+    if (!currentResponse.trim()) {
+      toast.error("Please provide a response before moving to the next question");
+      return;
+    }
+
+    // Save response to transcript
+    await api.addTranscriptEntry(interviewId!, 'Candidate', currentResponse, Date.now(), currentQuestion);
+    
+    // Analyze sentiment
+    const sentimentScore = analyzeSentiment(currentResponse);
+    setSentiment(sentimentScore);
+    
+    // Store response
+    const newResponses = [...responses];
+    newResponses[currentQuestion] = currentResponse;
+    setResponses(newResponses);
+    
+    // Move to next question or complete
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      askQuestion(currentQuestion + 1);
+    } else {
+      await completeInterview();
+    }
+  };
+
+  const stopRecording = () => {
+    if (animationFrameRef[0]) {
+      cancelAnimationFrame(animationFrameRef[0]);
+    }
+    if (mediaStreamRef[0]) {
+      mediaStreamRef[0].getTracks().forEach((track: any) => track.stop());
+    }
+    if (audioContextRef[0]) {
+      audioContextRef[0].close();
+    }
     if (recognition) {
       recognition.stop();
     }
+  };
+
+  const completeInterview = async () => {
+    stopRecording();
     
     setLoading(true);
     const result = await api.completeInterview(interviewId!);
@@ -163,9 +253,17 @@ const Interview = () => {
     if (result.error) {
       toast.error(result.error);
     } else {
+      toast.success("Interview completed successfully!");
       navigate("/results", { state: { interviewId } });
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopRecording();
+    };
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -235,11 +333,33 @@ const Interview = () => {
               <div className="grid gap-6">
                 <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
                   <div className="text-center mb-6">
-                    <div className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="w-24 h-24 md:w-32 md:h-32 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center relative">
                       <Mic className="h-12 w-12 md:h-16 md:w-16 text-primary" />
+                      {isRecording && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+                      )}
                     </div>
                     <VoiceVisualizer isActive={isActive} className="mb-6" />
-                    <p className="text-lg md:text-xl mb-4">{questions[currentQuestion]}</p>
+                    
+                    {/* Audio level indicator */}
+                    <div className="mb-4">
+                      <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                        <div 
+                          className="bg-primary h-full transition-all duration-100"
+                          style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <p className="text-lg md:text-xl font-semibold mb-6">{questions[currentQuestion]}</p>
+                    
+                    {/* Current response display */}
+                    {currentResponse && (
+                      <div className="mt-4 p-4 bg-accent/30 rounded-lg text-left">
+                        <p className="text-sm text-muted-foreground mb-1">Your response:</p>
+                        <p className="text-sm">{currentResponse}</p>
+                      </div>
+                    )}
                   </div>
                 </Card>
 
