@@ -17,7 +17,9 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-const upload = multer({ dest: 'uploads/' });
+// Use /tmp for Vercel serverless functions, 'uploads/' for local development
+const uploadDir = process.env.VERCEL ? '/tmp' : 'uploads/';
+const upload = multer({ dest: uploadDir });
 
 // Extract text from image using OCR
 async function extractTextFromImage(imagePath) {
