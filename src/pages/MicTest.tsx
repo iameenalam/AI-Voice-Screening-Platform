@@ -195,13 +195,12 @@ const MicTest = () => {
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4 w-full">
               {!testComplete && (
                 <Button
                   onClick={startTest}
                   disabled={testing}
-                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
-                  size="lg"
+                  className="w-full h-12 sm:h-14 px-6 sm:px-8 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all text-sm sm:text-base font-medium rounded-md"
                 >
                   {testing ? "Testing... (5s)" : error ? "Try Again" : "Test Microphone"}
                 </Button>
@@ -210,11 +209,12 @@ const MicTest = () => {
               {testComplete && (
                 <Button
                   onClick={handleStartInterview}
-                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
-                  size="lg"
+                  className="w-full h-12 sm:h-14 px-6 sm:px-8 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all text-sm sm:text-base font-medium rounded-md"
                 >
-                  Start Interview
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <span className="flex items-center justify-center">
+                    Start Interview
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </span>
                 </Button>
               )}
               
@@ -222,8 +222,7 @@ const MicTest = () => {
                 <Button
                   onClick={startTest}
                   variant="outline"
-                  size="lg"
-                  className="w-full hover:bg-accent/50 border-border/50 transition-all"
+                  className="w-full h-12 sm:h-14 px-6 sm:px-8 hover:bg-accent/50 border-border/50 transition-all text-sm sm:text-base font-medium rounded-md"
                 >
                   Test Again
                 </Button>

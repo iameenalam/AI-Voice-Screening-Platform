@@ -146,7 +146,15 @@ const Landing = () => {
                 onClick={() => {
                   const element = document.getElementById("benefits");
                   if (element) {
-                    element.scrollIntoView({ behavior: "smooth", block: "start" });
+                    const navbar = document.querySelector('nav');
+                    const navbarHeight = navbar ? navbar.getBoundingClientRect().height : 0;
+                    const currentScrollY = window.scrollY || window.pageYOffset;
+                    const elementRect = element.getBoundingClientRect();
+                    const targetScrollY = elementRect.top + currentScrollY - navbarHeight;
+                    window.scrollTo({
+                      top: Math.max(0, targetScrollY),
+                      behavior: "smooth"
+                    });
                   }
                 }}
               >

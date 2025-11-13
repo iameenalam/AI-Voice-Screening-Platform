@@ -72,6 +72,18 @@ All colors MUST be HSL.
   html {
     scroll-behavior: smooth;
   }
+
+  /* Account for sticky navbar when scrolling to sections */
+  section[id] {
+    scroll-margin-top: 80px; /* Approximate navbar height, adjusts based on screen size */
+  }
+
+  /* For mobile devices with smaller navbar */
+  @media (max-width: 768px) {
+    section[id] {
+      scroll-margin-top: 70px;
+    }
+  }
 }
 
 @layer utilities {

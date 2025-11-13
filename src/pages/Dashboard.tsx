@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Clock, TrendingUp, Users, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -210,8 +209,6 @@ const Dashboard = () => {
           </>
         )}
       </div>
-
-      <Footer />
     </div>
   );
 };

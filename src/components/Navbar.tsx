@@ -32,10 +32,30 @@ export const Navbar = ({
 
   const scrollToSection = (sectionId: string) => {
     setMobileMenuOpen(false);
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    // Close mobile menu first, then scroll after a brief delay to ensure menu is closed
+    setTimeout(() => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        // Get navbar height (sticky navbar) - account for different screen sizes
+        const navbar = document.querySelector('nav');
+        const navbarHeight = navbar ? navbar.getBoundingClientRect().height : 0;
+        
+        // Get current scroll position
+        const currentScrollY = window.scrollY || window.pageYOffset;
+        
+        // Get element's position relative to viewport
+        const elementRect = element.getBoundingClientRect();
+        
+        // Calculate target scroll position: element position + current scroll - navbar height
+        const targetScrollY = elementRect.top + currentScrollY - navbarHeight;
+        
+        // Scroll to position accounting for navbar height
+        window.scrollTo({
+          top: Math.max(0, targetScrollY), // Ensure we don't scroll to negative position
+          behavior: "smooth"
+        });
+      }
+    }, 150); // Slightly longer delay to ensure mobile menu animation completes
   };
 
   return (
