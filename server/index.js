@@ -55,8 +55,6 @@ async function connectDB() {
       maxPoolSize: 10, // Maintain up to 10 socket connections
       minPoolSize: 1, // Maintain at least 1 socket connection
       maxIdleTimeMS: 30000, // Close connections after 30s of inactivity
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0, // Disable mongoose buffering
     };
 
     console.log('🔄 Connecting to MongoDB...');
