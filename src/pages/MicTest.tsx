@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Mic, CheckCircle2, ArrowRight } from "lucide-react";
+import { Mic, CheckCircle2, ArrowRight, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const MicTest = () => {
   const navigate = useNavigate();
@@ -13,13 +14,104 @@ const MicTest = () => {
   const interviewId = location.state?.interviewId || localStorage.getItem('currentInterviewId');
   const [testing, setTesting] = useState(false);
   const [testComplete, setTestComplete] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
-  const startTest = () => {
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      stopMicTest();
+    };
+  }, []);
+
+  const stopMicTest = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+  };
+
+  const startTest = async () => {
+    setError(null);
     setTesting(true);
-    setTimeout(() => {
+    setTestComplete(false);
+
+    try {
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      // Create audio context and analyser
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 256;
+      
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      // Start monitoring audio levels
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let detectedSound = false;
+
+      const checkAudioLevel = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        setAudioLevel(average);
+
+        // If we detect sound above threshold, mark as successful
+        if (average > 10) {
+          detectedSound = true;
+        }
+
+        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+      };
+
+      checkAudioLevel();
+
+      // Auto-complete after 5 seconds if sound detected
+      setTimeout(() => {
+        stopMicTest();
+        setTesting(false);
+        
+        if (detectedSound) {
+          setTestComplete(true);
+          toast.success("Microphone is working perfectly!");
+        } else {
+          setError("No sound detected. Please check your microphone and try again.");
+          toast.error("No sound detected from microphone");
+        }
+      }, 5000);
+
+    } catch (err) {
+      console.error("Microphone access error:", err);
       setTesting(false);
-      setTestComplete(true);
-    }, 3000);
+      
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError("Microphone access denied. Please allow microphone access and try again.");
+          toast.error("Microphone access denied");
+        } else if (err.name === 'NotFoundError') {
+          setError("No microphone found. Please connect a microphone and try again.");
+          toast.error("No microphone found");
+        } else {
+          setError("Failed to access microphone. Please check your settings.");
+          toast.error("Microphone error");
+        }
+      }
+    }
   };
 
   const handleStartInterview = () => {
@@ -49,18 +141,36 @@ const MicTest = () => {
 
               {testing && (
                 <div className="mb-6">
-                  <VoiceVisualizer isActive={true} />
+                  <VoiceVisualizer isActive={audioLevel > 10} />
+                  <div className="mt-4">
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-primary h-full transition-all duration-100"
+                        style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Audio Level: {Math.round(audioLevel)}
+                    </p>
+                  </div>
                 </div>
               )}
 
               {testComplete && (
-                <div className="flex items-center justify-center gap-2 text-green-500 mb-6">
+                <div className="flex items-center justify-center gap-2 text-green-500 mb-6 animate-fade-in">
                   <CheckCircle2 className="h-6 w-6" />
                   <span className="text-xl font-medium">Microphone working fine!</span>
                 </div>
               )}
 
-              {!testing && !testComplete && (
+              {error && (
+                <div className="flex items-start gap-2 text-destructive mb-6 p-4 bg-destructive/10 rounded-lg animate-fade-in">
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+
+              {!testing && !testComplete && !error && (
                 <p className="text-muted-foreground mb-6">
                   Click the button below to test your microphone
                 </p>
@@ -68,7 +178,7 @@ const MicTest = () => {
 
               {testing && (
                 <p className="text-muted-foreground mb-6">
-                  Say something to test your microphone...
+                  <span className="font-medium">Speak now!</span> Say something to test your microphone...
                 </p>
               )}
             </div>
@@ -81,7 +191,7 @@ const MicTest = () => {
                   className="bg-cta hover:bg-cta/90"
                   size="lg"
                 >
-                  {testing ? "Testing..." : "Test Microphone"}
+                  {testing ? "Testing... (5s)" : error ? "Try Again" : "Test Microphone"}
                 </Button>
               )}
 
@@ -93,6 +203,17 @@ const MicTest = () => {
                 >
                   Start Interview
                   <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+              
+              {(testComplete || error) && (
+                <Button
+                  onClick={startTest}
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                >
+                  Test Again
                 </Button>
               )}
             </div>

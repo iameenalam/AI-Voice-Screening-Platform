@@ -14,6 +14,10 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  fullRole: {
+    type: String,
+    default: '',
+  },
   email: {
     type: String,
     required: true,

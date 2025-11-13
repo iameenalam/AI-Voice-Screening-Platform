@@ -20,6 +20,8 @@ const UploadCV = () => {
     phone: "",
     email: "",
   });
+  const [fullRole, setFullRole] = useState("");
+  const [showFullRole, setShowFullRole] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,14 +37,29 @@ const UploadCV = () => {
       }
 
       if (result.data) {
+        // API returns { data: { success: true, data: extractedData } }
+        const extractedData = result.data.data || result.data;
+        const hasData = extractedData.name || extractedData.email || extractedData.phone;
+        
         setCandidateData({
-          name: result.data.name || "",
-          role: result.data.role || "",
-          phone: result.data.phone || "",
-          email: result.data.email || "",
+          name: extractedData.name || "",
+          role: extractedData.role || "",
+          phone: extractedData.phone || "",
+          email: extractedData.email || "",
         });
+        
+        // Store full role if available
+        if (extractedData.fullRole && extractedData.fullRole !== extractedData.role) {
+          setFullRole(extractedData.fullRole);
+        }
+        
         setExtracted(true);
-        toast.success("CV extracted successfully!");
+        
+        if (hasData) {
+          toast.success("Contact details extracted successfully!");
+        } else {
+          toast.warning("Could not extract data automatically. Please enter details manually.");
+        }
       }
       
       setUploading(false);
@@ -57,7 +74,13 @@ const UploadCV = () => {
       return;
     }
 
-    const result = await api.createCandidate(candidateData);
+    // Include full role in the submission
+    const candidatePayload = {
+      ...candidateData,
+      fullRole: fullRole || candidateData.role, // Use fullRole if available, otherwise use role
+    };
+
+    const result = await api.createCandidate(candidatePayload);
     
     if (result.error) {
       toast.error(result.error);
@@ -67,7 +90,13 @@ const UploadCV = () => {
     if (result.data) {
       setCandidateId(result.data._id);
       localStorage.setItem('currentCandidateId', result.data._id);
-      navigate("/screening-setup", { state: { candidateId: result.data._id, role: candidateData.role } });
+      // Pass full role for AI question generation
+      navigate("/screening-setup", { 
+        state: { 
+          candidateId: result.data._id, 
+          role: fullRole || candidateData.role // Use full role for context
+        } 
+      });
     }
   };
 
@@ -146,15 +175,45 @@ const UploadCV = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Input
-                      id="role"
-                      value={candidateData.role}
-                      onChange={(e) =>
-                        setCandidateData({ ...candidateData, role: e.target.value })
-                      }
-                      className="bg-input"
-                    />
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="role">Role</Label>
+                      {fullRole && fullRole !== candidateData.role && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowFullRole(!showFullRole)}
+                          className="text-xs h-6 px-2"
+                        >
+                          {showFullRole ? "Show Less" : "Show Full"}
+                        </Button>
+                      )}
+                    </div>
+                    {showFullRole && fullRole ? (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-muted rounded-md text-sm">
+                          {fullRole}
+                        </div>
+                        <Input
+                          id="role"
+                          value={candidateData.role}
+                          onChange={(e) =>
+                            setCandidateData({ ...candidateData, role: e.target.value })
+                          }
+                          className="bg-input"
+                          placeholder="Edit role here..."
+                        />
+                      </div>
+                    ) : (
+                      <Input
+                        id="role"
+                        value={candidateData.role}
+                        onChange={(e) =>
+                          setCandidateData({ ...candidateData, role: e.target.value })
+                        }
+                        className="bg-input"
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-2">
