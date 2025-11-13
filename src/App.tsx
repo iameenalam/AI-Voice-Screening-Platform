@@ -13,7 +13,6 @@ import Interview from "./pages/Interview";
 import Results from "./pages/Results";
 import Download from "./pages/Download";
 import Dashboard from "./pages/Dashboard";
-import Demo from "./pages/Demo";
 import Transcript from "./pages/Transcript";
 import NotFound from "./pages/NotFound";
 
@@ -36,7 +35,6 @@ const App = () => (
           <Route path="/results" element={<Results />} />
           <Route path="/download" element={<Download />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/demo" element={<Demo />} />
           <Route path="/transcript" element={<Transcript />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

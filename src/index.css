@@ -65,6 +65,7 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "liga" 1, "calt" 1;
+    overflow-x: hidden;
   }
 
   /* Smooth scrolling */

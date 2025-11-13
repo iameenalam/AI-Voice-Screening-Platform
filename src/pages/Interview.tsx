@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
-import { Footer } from "@/components/Footer";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Mic, Phone, Loader2 } from "lucide-react";
@@ -272,8 +271,12 @@ const Interview = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm">
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Background gradient matching landing page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+      
+      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
@@ -297,7 +300,7 @@ const Interview = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
         <div className="max-w-4xl mx-auto">
           {!interviewStarted ? (
             <div className="text-center">
@@ -308,7 +311,7 @@ const Interview = () => {
               <Button
                 onClick={startInterview}
                 disabled={loading}
-                className="bg-cta hover:bg-cta/90"
+                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
                 size="lg"
               >
                 {loading ? (
@@ -407,7 +410,6 @@ const Interview = () => {
           )}
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { Logo } from "@/components/Logo";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Download, ArrowLeft, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -63,10 +62,23 @@ const Transcript = () => {
   const candidateRole = interview.candidateId?.role || '';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar showUserMenu />
-
-      <div className="container mx-auto px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Background gradient matching landing page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+      
+      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+              <Logo />
+            </button>
+          </div>
+        </div>
+      </nav>
+      
+      <div className="flex-1 flex items-center justify-center relative z-10">
+        <div className="container mx-auto px-4 py-8 md:py-12 w-full">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
             <div>
@@ -81,14 +93,14 @@ const Transcript = () => {
               <Button
                 onClick={() => navigate("/results", { state: { interviewId } })}
                 variant="outline"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto hover:bg-accent/50 border-border/50 transition-all"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
               <Button
                 onClick={() => navigate("/download", { state: { interviewId } })}
-                className="bg-cta hover:bg-cta/90 w-full sm:w-auto"
+                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export
@@ -123,8 +135,8 @@ const Transcript = () => {
             </div>
           </Card>
         </div>
+        </div>
       </div>
-      <Footer />
     </div>
   );
 };

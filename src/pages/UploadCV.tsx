@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { Logo } from "@/components/Logo";
 import { useNavigate } from "react-router-dom";
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -101,10 +100,23 @@ const UploadCV = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar showUserMenu />
-
-      <div className="container mx-auto px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Background gradient matching landing page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+      
+      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+              <Logo />
+            </button>
+          </div>
+        </div>
+      </nav>
+      
+      <div className="flex-1 flex items-center justify-center relative z-10">
+        <div className="container mx-auto px-4 py-8 md:py-12 w-full">
         <div className="max-w-2xl mx-auto">
           <div className="mb-6 md:mb-8 animate-fade-in">
             <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -145,15 +157,6 @@ const UploadCV = () => {
                       disabled={uploading}
                     />
                   </Label>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-border" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">Or enter manually</span>
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="space-y-4 animate-fade-in">
@@ -243,7 +246,7 @@ const UploadCV = () => {
 
                   <Button
                     type="submit"
-                    className="w-full bg-cta hover:bg-cta/90"
+                    className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
                     size="lg"
                   >
                     Next: Screening Questions
@@ -253,8 +256,8 @@ const UploadCV = () => {
             </form>
           </Card>
         </div>
+        </div>
       </div>
-      <Footer />
     </div>
   );
 };

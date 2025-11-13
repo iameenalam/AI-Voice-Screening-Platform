@@ -6,9 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { 
   Bot, Clock, Zap, Shield, TrendingUp, Users, 
   Mic, Brain, BarChart3, CheckCircle2, ArrowRight,
-  Sparkles, MessageSquare, FileText, Globe
+  Sparkles, MessageSquare, FileText
 } from "lucide-react";
-import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -89,11 +88,11 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
       {/* Hero Section */}
-      <section className="pt-20 pb-20 px-4 relative overflow-hidden min-h-[85vh] flex items-center">
+      <section id="home" className="pt-20 pb-20 px-4 relative overflow-hidden min-h-[85vh] flex items-center">
         {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
@@ -130,24 +129,11 @@ const Landing = () => {
               </p>
             </div>
 
-            {/* Voice Visualizer Demo */}
-            <div className="flex justify-center mb-10 animate-fade-in">
-              <Card className="p-6 md:p-8 bg-card/60 backdrop-blur-xl border-border/50 card-shadow hover-lift transition-all">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border border-primary/30 shadow-lg">
-                    <Mic className="h-7 w-7 md:h-8 md:w-8 text-primary" />
-                  </div>
-                  <VoiceVisualizer isActive={true} />
-                  <p className="text-xs md:text-sm text-muted-foreground font-medium">Live AI Voice Interview</p>
-                </div>
-              </Card>
-            </div>
-            
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-fade-in">
               <Button 
                 size="lg" 
-                className="text-base md:text-lg px-8 md:px-10 py-6 md:py-7 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-2xl hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
+                className="w-full sm:w-auto text-base md:text-lg px-8 md:px-10 py-6 md:py-7 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-2xl hover:shadow-primary/50 transition-all hover:scale-105 font-semibold"
                 onClick={() => navigate("/signup")}
               >
                 Start Free Trial
@@ -156,11 +142,16 @@ const Landing = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="text-base md:text-lg px-8 md:px-10 py-6 md:py-7 border-2 hover:bg-accent/50 backdrop-blur-sm font-semibold"
-                onClick={() => navigate("/demo")}
+                className="w-full sm:w-auto text-base md:text-lg px-8 md:px-10 py-6 md:py-7 border-2 hover:bg-accent/50 backdrop-blur-sm font-semibold"
+                onClick={() => {
+                  const element = document.getElementById("benefits");
+                  if (element) {
+                    element.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
               >
-                <Globe className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                Try Sample Interview
+                Learn More
+                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </div>
 
@@ -182,7 +173,7 @@ const Landing = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-24 px-4 relative">
+      <section id="features" className="py-24 px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-16">
@@ -221,7 +212,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-24 px-4 bg-gradient-to-b from-background to-accent/5">
+      <section id="how-it-works" className="py-24 px-4 bg-gradient-to-b from-background to-accent/5">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -288,7 +279,7 @@ const Landing = () => {
       </section>
 
       {/* Key Benefits */}
-      <section className="py-24 px-4">
+      <section id="benefits" className="py-24 px-4">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -317,17 +308,12 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 relative overflow-hidden">
+      <section id="cta" className="py-24 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-blue-500/10 to-purple-500/10" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.05),transparent_50%)]" />
         
         <div className="container mx-auto text-center relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm mb-6">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Trusted by 100+ Companies</span>
-            </div>
-            
             <h2 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
                 Ready to Transform
@@ -342,7 +328,7 @@ const Landing = () => {
               <span className="text-foreground font-semibold"> better hiring decisions</span> with AI-powered voice screening
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex justify-center items-center">
               <Button 
                 size="lg" 
                 className="text-lg px-10 py-7 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-2xl hover:shadow-primary/50 transition-all hover:scale-105"
@@ -350,14 +336,6 @@ const Landing = () => {
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="text-lg px-10 py-7 border-2 hover:bg-accent/50 backdrop-blur-sm"
-                onClick={() => navigate("/demo")}
-              >
-                See It In Action
               </Button>
             </div>
 

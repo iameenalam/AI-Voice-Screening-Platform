@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { Logo } from "@/components/Logo";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sparkles, Plus, X, Loader2, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
@@ -85,10 +84,23 @@ const ScreeningSetup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar showUserMenu />
-
-      <div className="container mx-auto px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Background gradient matching landing page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+      
+      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+              <Logo />
+            </button>
+          </div>
+        </div>
+      </nav>
+      
+      <div className="flex-1 flex items-center justify-center relative z-10">
+        <div className="container mx-auto px-4 py-8 md:py-12 w-full">
         <div className="max-w-3xl mx-auto">
           <div className="mb-6 md:mb-8 animate-fade-in">
             <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
@@ -151,7 +163,7 @@ const ScreeningSetup = () => {
                 <Button
                   onClick={handleAddQuestion}
                   variant="outline"
-                  className="w-full"
+                  className="w-full hover:bg-accent/50 border-border/50 transition-all"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Question
@@ -170,8 +182,8 @@ const ScreeningSetup = () => {
             </Button>
           </div>
         </div>
+        </div>
       </div>
-      <Footer />
     </div>
   );
 };
