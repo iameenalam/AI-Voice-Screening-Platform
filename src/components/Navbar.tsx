@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Plus, ArrowRight, LogOut, User, Menu, X } from "lucide-react";
+import { Plus, ArrowRight, LogOut, Menu, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface NavbarProps {
@@ -105,24 +105,31 @@ export const Navbar = ({
 
           {/* Right Side Buttons */}
           <div className="flex items-center gap-3">
-            {showUserMenu && user && (
-              <div className="hidden sm:flex items-center gap-3 mr-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/30 border border-border/30">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user.name}</span>
-                </div>
-              </div>
-            )}
-
             {showActions && (
-              <Button
-                onClick={onActionClick || (() => navigate("/upload-cv"))}
-                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all px-2 py-1 md:px-3 md:py-1.5"
-                size="sm"
-              >
-                <Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                <span className="text-xs md:text-sm">{actionLabel}</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={onActionClick || (() => navigate("/upload-cv"))}
+                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all px-2 py-1 md:px-3 md:py-1.5"
+                  size="sm"
+                >
+                  <Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                  <span className="text-xs md:text-sm">
+                    <span className="hidden sm:inline">{actionLabel}</span>
+                    <span className="sm:hidden">Interview</span>
+                  </span>
+                </Button>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="text-muted-foreground hover:text-foreground px-2 py-1 md:px-3 md:py-1.5"
+                  >
+                    <LogOut className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <span className="hidden md:inline">Logout</span>
+                  </Button>
+                )}
+              </div>
             )}
 
             {!showActions && (

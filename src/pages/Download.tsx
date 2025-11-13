@@ -158,9 +158,9 @@ const Download = () => {
           </div>
 
           <div className="grid gap-6">
-            <Card className="p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-              <h2 className="text-xl font-semibold mb-4">Format Options</h2>
-              <div className="grid md:grid-cols-3 gap-3">
+            <Card className="p-4 sm:p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+              <h2 className="text-lg sm:text-xl font-semibold mb-3 md:mb-4">Format Options</h2>
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {[
                   { value: "pdf", label: "PDF", icon: FileText },
                   { value: "csv", label: "CSV", icon: FileSpreadsheet },
@@ -182,8 +182,8 @@ const Download = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-              <h2 className="text-xl font-semibold mb-4">Include in Report</h2>
+            <Card className="p-4 sm:p-6 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+              <h2 className="text-lg sm:text-xl font-semibold mb-3 md:mb-4">Include in Report</h2>
               <div className="space-y-4">
                 {[
                   { id: "transcript", label: "Full Transcript" },
@@ -212,9 +212,9 @@ const Download = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-gradient-to-br from-primary/10 via-accent/20 to-primary/5 backdrop-blur-xl border-primary/30 shadow-lg animate-fade-in">
-              <h2 className="text-xl font-semibold mb-2">Report Summary</h2>
-              <p className="text-muted-foreground mb-4">
+            <Card className="p-4 sm:p-6 bg-gradient-to-br from-primary/10 via-accent/20 to-primary/5 backdrop-blur-xl border-primary/30 shadow-lg animate-fade-in">
+              <h2 className="text-lg sm:text-xl font-semibold mb-2">Report Summary</h2>
+              <p className="text-sm sm:text-base text-muted-foreground mb-3 md:mb-4">
                 Your report will include{" "}
                 {Object.values(includeOptions).filter(Boolean).length} sections in{" "}
                 {format.toUpperCase()} format.

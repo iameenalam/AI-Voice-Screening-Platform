@@ -145,10 +145,10 @@ const MicTest = () => {
             </p>
           </div>
 
-          <Card className="p-6 md:p-12 bg-card/80 backdrop-blur-xl border-border/50 card-shadow text-center hover-lift animate-fade-in">
-            <div className="mb-8">
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                <Mic className="h-12 w-12 text-primary" />
+          <Card className="p-4 sm:p-6 md:p-12 bg-card/80 backdrop-blur-xl border-border/50 card-shadow text-center hover-lift animate-fade-in">
+            <div className="mb-6 md:mb-8">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-24 md:h-24 mx-auto mb-4 md:mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mic className="h-10 w-10 sm:h-12 sm:w-12 md:h-12 md:w-12 text-primary" />
               </div>
 
               {testing && (
@@ -169,9 +169,9 @@ const MicTest = () => {
               )}
 
               {testComplete && (
-                <div className="flex items-center justify-center gap-2 text-green-500 mb-6 animate-fade-in">
-                  <CheckCircle2 className="h-6 w-6" />
-                  <span className="text-xl font-medium">Microphone working fine!</span>
+                <div className="flex items-center justify-center gap-2 text-green-500 mb-4 md:mb-6 animate-fade-in">
+                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <span className="text-base sm:text-lg md:text-xl font-medium">Microphone working fine!</span>
                 </div>
               )}
 

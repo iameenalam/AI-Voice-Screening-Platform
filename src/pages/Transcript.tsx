@@ -81,11 +81,11 @@ const Transcript = () => {
         <div className="container mx-auto px-4 py-8 md:py-12 w-full">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
                 Full Interview Transcript
               </h1>
-              <p className="text-sm md:text-base text-muted-foreground">
+              <p className="text-xs sm:text-sm md:text-base text-muted-foreground truncate">
                 {candidateName} {candidateRole ? `- ${candidateRole}` : ''}
               </p>
             </div>
@@ -108,24 +108,24 @@ const Transcript = () => {
             </div>
           </div>
 
-          <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-            <div className="space-y-4 md:space-y-6">
+          <Card className="p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+            <div className="space-y-3 sm:space-y-4 md:space-y-6">
               {transcript.length > 0 ? (
                 transcript.map((item: any, index: number) => (
                   <div
                     key={index}
-                    className={`flex flex-col sm:flex-row gap-3 sm:gap-4 p-4 rounded-lg ${
+                    className={`flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 rounded-lg ${
                       item.speaker === "AI"
                         ? "bg-primary/5"
                         : "bg-accent/50"
                     }`}
                   >
-                    <div className="flex-shrink-0 sm:w-24 text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex-shrink-0 sm:w-20 md:w-24 text-xs sm:text-sm text-muted-foreground">
                       <div className="font-semibold mb-1">{item.speaker}</div>
-                      <div>{formatTime(item.timestamp || Date.now())}</div>
+                      <div className="text-xs">{formatTime(item.timestamp || Date.now())}</div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm md:text-base">{item.text}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm sm:text-base break-words">{item.text}</p>
                     </div>
                   </div>
                 ))

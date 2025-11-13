@@ -220,19 +220,19 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-24 px-4 bg-gradient-to-b from-background to-accent/5">
+      <section id="how-it-works" className="py-12 md:py-24 px-4 bg-gradient-to-b from-background to-accent/5">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+          <div className="text-center mb-8 md:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               How It Works
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Get started in minutes with our simple, intuitive workflow
             </p>
           </div>
 
           <div className="max-w-5xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
               {[
                 {
                   step: "01",
@@ -261,22 +261,22 @@ const Landing = () => {
               ].map((item, index) => (
                 <Card
                   key={item.step}
-                  className="group p-8 bg-card/80 backdrop-blur-xl border-border/50 hover:border-primary/50 transition-all duration-300 card-shadow hover-lift"
+                  className="group p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 hover:border-primary/50 transition-all duration-300 card-shadow hover-lift"
                 >
-                  <div className="flex gap-6 items-start">
+                  <div className="flex gap-3 sm:gap-4 md:gap-6 items-start">
                     <div className="flex-shrink-0">
-                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
-                        <span className="text-2xl font-bold text-primary/50 group-hover:text-primary transition-colors">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
+                        <span className="text-lg sm:text-xl md:text-2xl font-bold text-primary/50 group-hover:text-primary transition-colors">
                           {item.step}
                         </span>
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <item.icon className="h-5 w-5 text-primary" />
-                        <h3 className="text-xl font-bold">{item.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                        <h3 className="text-base sm:text-lg md:text-xl font-bold">{item.title}</h3>
                       </div>
-                      <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{item.description}</p>
                     </div>
                   </div>
                 </Card>

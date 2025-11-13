@@ -84,21 +84,21 @@ const Results = () => {
         <div className="container mx-auto px-4 py-8 md:py-12 w-full">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-6 md:mb-8 animate-fade-in">
-            <div className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center border border-green-500/30 shadow-lg">
-              <CheckCircle2 className="h-8 w-8 md:h-10 md:w-10 text-green-500" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 md:mb-4 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center border border-green-500/30 shadow-lg">
+              <CheckCircle2 className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 text-green-500" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               Interview Completed!
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground">
+            <p className="text-xs sm:text-sm md:text-base text-muted-foreground px-4">
               AI analysis and transcript are ready for review
             </p>
           </div>
 
           <div className="grid gap-6">
-            <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-              <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <Card className="p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 md:mb-4 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary flex-shrink-0" />
                 AI Summary
               </h2>
               <div className="space-y-4">
@@ -139,9 +139,9 @@ const Results = () => {
               </div>
             </Card>
 
-            <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-              <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                <FileText className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <Card className="p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 md:mb-4 flex items-center gap-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary flex-shrink-0" />
                 Interview Transcript
               </h2>
 
