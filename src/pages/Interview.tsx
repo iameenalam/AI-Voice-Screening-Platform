@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Mic, Phone, Loader2 } from "lucide-react";
+import { Mic, Phone, Loader2, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -26,10 +26,11 @@ const Interview = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   const [responses, setResponses] = useState<string[]>([]);
   
-  const mediaStreamRef = useState<any>(null);
-  const audioContextRef = useState<any>(null);
-  const analyserRef = useState<any>(null);
-  const animationFrameRef = useState<any>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const accumulatedTranscriptRef = useRef<string>("");
 
   useEffect(() => {
     if (!interviewId) {
@@ -84,13 +85,13 @@ const Interview = () => {
     try {
       // Start microphone for audio visualization
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef[0] = stream;
+      mediaStreamRef.current = stream;
 
       const audioContext = new AudioContext();
-      audioContextRef[0] = audioContext;
+      audioContextRef.current = audioContext;
       
       const analyser = audioContext.createAnalyser();
-      analyserRef[0] = analyser;
+      analyserRef.current = analyser;
       analyser.fftSize = 256;
       
       const source = audioContext.createMediaStreamSource(stream);
@@ -103,7 +104,7 @@ const Interview = () => {
         const average = dataArray.reduce((a: number, b: number) => a + b) / dataArray.length;
         setAudioLevel(average);
         setIsActive(average > 10); // Activate visualizer when speaking
-        animationFrameRef[0] = requestAnimationFrame(checkAudioLevel);
+        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
       };
       checkAudioLevel();
 
@@ -123,16 +124,19 @@ const Interview = () => {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
               finalTranscript += transcript + ' ';
+              // Accumulate final transcripts
+              accumulatedTranscriptRef.current += transcript + ' ';
             } else {
               interimTranscript += transcript;
             }
           }
 
-          const fullTranscript = finalTranscript || interimTranscript;
-          setCurrentResponse(fullTranscript);
+          // Display accumulated final transcript + current interim transcript
+          const displayText = accumulatedTranscriptRef.current + interimTranscript;
+          setCurrentResponse(displayText);
           
           // Update recording state based on speech
-          if (fullTranscript.trim()) {
+          if (displayText.trim() || interimTranscript.trim()) {
             setIsRecording(true);
           }
         };
@@ -194,6 +198,7 @@ const Interview = () => {
 
     const question = questions[index];
     setCurrentResponse("");
+    accumulatedTranscriptRef.current = ""; // Reset accumulated transcript for new question
     setIsRecording(false);
     
     // Save question to transcript
@@ -201,41 +206,62 @@ const Interview = () => {
   };
 
   const handleNextQuestion = async () => {
-    if (!currentResponse.trim()) {
+    // Use accumulated transcript (final response without interim results)
+    // Also check currentResponse in case accumulatedTranscriptRef hasn't been updated yet
+    let finalResponse = accumulatedTranscriptRef.current.trim();
+    
+    // If accumulated is empty but currentResponse has content, use that
+    if (!finalResponse && currentResponse.trim()) {
+      finalResponse = currentResponse.trim();
+      // Update the ref so it's saved properly
+      accumulatedTranscriptRef.current = finalResponse;
+    }
+    
+    if (!finalResponse) {
       toast.error("Please provide a response before moving to the next question");
       return;
     }
 
-    // Save response to transcript
-    await api.addTranscriptEntry(interviewId!, 'Candidate', currentResponse, Date.now(), currentQuestion);
+    setLoading(true);
     
-    // Analyze sentiment
-    const sentimentScore = analyzeSentiment(currentResponse);
-    setSentiment(sentimentScore);
-    
-    // Store response
-    const newResponses = [...responses];
-    newResponses[currentQuestion] = currentResponse;
-    setResponses(newResponses);
-    
-    // Move to next question or complete
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      askQuestion(currentQuestion + 1);
-    } else {
-      await completeInterview();
+    try {
+      // Save response to transcript
+      await api.addTranscriptEntry(interviewId!, 'Candidate', finalResponse, Date.now(), currentQuestion);
+      
+      // Analyze sentiment
+      const sentimentScore = analyzeSentiment(finalResponse);
+      setSentiment(sentimentScore);
+      
+      // Store response
+      const newResponses = [...responses];
+      newResponses[currentQuestion] = finalResponse;
+      setResponses(newResponses);
+      
+      // Move to next question or complete
+      if (currentQuestion < questions.length - 1) {
+        setCurrentQuestion(currentQuestion + 1);
+        await askQuestion(currentQuestion + 1);
+      } else {
+        await completeInterview();
+        return; // completeInterview handles navigation
+      }
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      toast.error("Failed to submit answer. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const stopRecording = () => {
-    if (animationFrameRef[0]) {
-      cancelAnimationFrame(animationFrameRef[0]);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
     }
-    if (mediaStreamRef[0]) {
-      mediaStreamRef[0].getTracks().forEach((track: any) => track.stop());
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track: any) => track.stop());
     }
-    if (audioContextRef[0]) {
-      audioContextRef[0].close();
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
     }
     if (recognition) {
       recognition.stop();
@@ -357,13 +383,17 @@ const Interview = () => {
                     
                     <p className="text-lg md:text-xl font-semibold mb-6">{questions[currentQuestion]}</p>
                     
-                    {/* Current response display */}
-                    {currentResponse && (
-                      <div className="mt-4 p-4 bg-accent/30 rounded-lg text-left">
-                        <p className="text-sm text-muted-foreground mb-1">Your response:</p>
-                        <p className="text-sm">{currentResponse}</p>
-                      </div>
-                    )}
+                    {/* Current response display - always show when recording or has content */}
+                    <div className="mt-4 p-4 bg-accent/30 rounded-lg text-left min-h-[80px]">
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Your response:</p>
+                      {currentResponse ? (
+                        <p className="text-sm md:text-base whitespace-pre-wrap break-words">{currentResponse}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          {isRecording ? "Listening..." : "Start speaking to see your response here..."}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </Card>
 
@@ -396,16 +426,58 @@ const Interview = () => {
                   </Card>
                 </div>
 
-                <Button
-                  onClick={completeInterview}
-                  variant="destructive"
-                  size="lg"
-                  className="w-full"
-                  disabled={loading}
-                >
-                  <Phone className="mr-2 h-5 w-5" />
-                  {loading ? "Completing..." : "End Interview"}
-                </Button>
+                <div className="flex gap-4">
+                  {currentQuestion < questions.length - 1 ? (
+                    <Button
+                      onClick={handleNextQuestion}
+                      size="lg"
+                      className="flex-1 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                      disabled={loading || !currentResponse.trim()}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          Submit Answer & Next Question
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleNextQuestion}
+                      size="lg"
+                      className="flex-1 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                      disabled={loading || !currentResponse.trim()}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Completing...
+                        </>
+                      ) : (
+                        <>
+                          Submit Final Answer & Complete
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
+                  <Button
+                    onClick={completeInterview}
+                    variant="destructive"
+                    size="lg"
+                    className="flex-1"
+                    disabled={loading}
+                  >
+                    <Phone className="mr-2 h-5 w-5" />
+                    {loading ? "Completing..." : "End Interview"}
+                  </Button>
+                </div>
               </div>
             </>
           )}

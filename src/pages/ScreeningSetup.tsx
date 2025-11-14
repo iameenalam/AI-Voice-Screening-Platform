@@ -121,7 +121,7 @@ const ScreeningSetup = () => {
                 )}
               </div>
               <p className="text-xs md:text-sm text-muted-foreground mb-4">
-                {role ? `These questions are tailored for the ${role} role` : "AI-generated interview questions"}
+                {role ? `These questions are tailored for ${role}` : "AI-generated interview questions"}
               </p>
 
               <div className="space-y-3">

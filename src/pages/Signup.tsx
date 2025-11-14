@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,18 @@ const Signup = () => {
     password: "",
     company: "",
   });
+
+  // Redirect if already authenticated - useLayoutEffect runs synchronously before paint
+  useLayoutEffect(() => {
+    if (api.isAuthenticated()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
+  // Don't render if authenticated
+  if (api.isAuthenticated()) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

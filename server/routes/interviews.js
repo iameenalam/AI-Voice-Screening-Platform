@@ -40,7 +40,7 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       });
     }
 
-    const prompt = `Generate 3-5 professional interview questions for a ${fullRole} position. Return only the questions, one per line, without numbering or bullets.`;
+    const prompt = `Generate 3-5 professional interview questions for a ${role} position. Return only the questions, one per line, without numbering or bullets.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
@@ -254,48 +254,139 @@ router.post('/:id/complete', authenticate, async (req, res) => {
       );
     }
 
-    // Calculate average sentiment
-    const sentiments = interview.transcript
-      .filter(t => t.speaker === 'Candidate')
-      .map(t => {
-        // This would ideally come from analysis, but for now we'll use a simple calculation
-        return 0.7; // Placeholder
-      });
+    const openai = getOpenAIClient();
     
+    // Analyze each candidate response using OpenAI
+    const sentiments = [];
+    const candidateResponses = interview.transcript.filter(t => t.speaker === 'Candidate');
+    
+    if (openai && candidateResponses.length > 0) {
+      try {
+        // Group responses by question index
+        const responsesByQuestion = {};
+        candidateResponses.forEach(entry => {
+          const qIndex = entry.questionIndex >= 0 ? entry.questionIndex : 0;
+          if (!responsesByQuestion[qIndex]) {
+            responsesByQuestion[qIndex] = [];
+          }
+          responsesByQuestion[qIndex].push(entry.text);
+        });
+
+        // Get corresponding questions
+        const questionsByIndex = {};
+        interview.transcript.filter(t => t.speaker === 'AI').forEach(entry => {
+          if (entry.questionIndex >= 0) {
+            questionsByIndex[entry.questionIndex] = entry.text;
+          }
+        });
+
+        // Analyze each response
+        for (const [qIndex, responses] of Object.entries(responsesByQuestion)) {
+          const question = questionsByIndex[qIndex] || 'General question';
+          const responseText = responses.join(' ');
+          
+          if (responseText.trim()) {
+            try {
+              const analysisResult = await openai.chat.completions.create({
+                model: 'gpt-4',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are an expert interviewer analyzing candidate responses. Return only valid JSON.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Analyze this interview response:
+
+Question: ${question}
+Response: ${responseText}
+
+Provide:
+1. A sentiment score from -1 to 1 (where 1 is very positive)
+2. Confidence level (Low, Medium, High)
+3. Any red flags (if none, say "None")
+4. A brief summary (1-2 sentences)
+
+Format as JSON:
+{
+  "sentiment": 0.75,
+  "confidence": "High",
+  "redFlags": [],
+  "summary": "Brief summary here"
+}`,
+                  },
+                ],
+                response_format: { type: 'json_object' },
+                max_tokens: 300,
+              });
+
+              const analysis = JSON.parse(analysisResult.choices[0].message.content);
+              sentiments.push(analysis.sentiment);
+              
+              // Collect red flags
+              if (analysis.redFlags && analysis.redFlags.length > 0 && analysis.redFlags[0] !== 'None') {
+                interview.redFlags = [...(interview.redFlags || []), ...analysis.redFlags];
+              }
+            } catch (error) {
+              console.error('Error analyzing response:', error);
+              sentiments.push(0.7); // Default sentiment
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in batch analysis:', error);
+      }
+    }
+    
+    // Calculate average sentiment
     if (sentiments.length > 0) {
       interview.sentimentScore = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
+    } else {
+      // Fallback: simple calculation if no OpenAI analysis
+      interview.sentimentScore = 0.7;
     }
 
-    // Generate AI summary
+    // Generate AI summary based on full transcript
     const transcriptText = interview.transcript
       .map(t => `${t.speaker}: ${t.text}`)
       .join('\n');
 
-    const openai = getOpenAIClient();
     if (openai) {
       try {
         const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert recruiter. Provide a concise summary and recommendations for this interview.',
-          },
-          {
-            role: 'user',
-            content: `Summarize this interview transcript and provide recommendations:\n\n${transcriptText}`,
-          },
-        ],
-        max_tokens: 500,
-      });
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert recruiter. Provide a concise summary and recommendations for this interview based on the candidate\'s actual responses.',
+            },
+            {
+              role: 'user',
+              content: `Based on this interview transcript, provide:
+1. A comprehensive summary of the candidate's performance, strengths, and areas of concern
+2. Specific recommendations for next steps (e.g., "Proceed to next round", "Not a good fit", "Consider for different role", etc.)
+
+Transcript:
+${transcriptText}
+
+Format your response with two clear sections:
+SUMMARY: [your summary here]
+
+RECOMMENDATIONS: [your recommendations here]`,
+            },
+          ],
+          max_tokens: 800,
+        });
 
         const summary = completion.choices[0].message.content;
-        const parts = summary.split('\n\n');
-        interview.aiSummary = parts[0] || summary;
-        interview.recommendations = parts[1] || 'Consider for next round.';
+        const summaryMatch = summary.match(/SUMMARY:\s*(.+?)(?=RECOMMENDATIONS:|$)/is);
+        const recommendationsMatch = summary.match(/RECOMMENDATIONS:\s*(.+?)$/is);
+        
+        interview.aiSummary = summaryMatch ? summaryMatch[1].trim() : summary.split('\n\n')[0] || summary;
+        interview.recommendations = recommendationsMatch ? recommendationsMatch[1].trim() : summary.split('\n\n')[1] || 'Consider for next round.';
       } catch (error) {
         console.error('OpenAI summary error:', error);
-        interview.aiSummary = 'Strong candidate with good technical foundation.';
+        interview.aiSummary = 'Interview completed successfully. Review the transcript for detailed responses.';
         interview.recommendations = 'Consider for next round.';
       }
     } else {
