@@ -121,6 +121,7 @@ async function extractTextFromPDF(filePath) {
           console.log(`📝 Extracted text length: ${finalText.length} characters`);
           console.log(`📄 PDF pages processed: ${Object.keys(pageLines).length}`);
           console.log(`📝 First 500 chars:`, finalText.substring(0, 500));
+          console.log(`\n🔍 RAW EXTRACTED TEXT FROM PDF:\n${finalText}\n`);
           
           if (finalText && finalText.length > 50) {
             console.log('✅ PDF text extraction successful');
@@ -225,8 +226,17 @@ function normalizeText(text) {
     const totalWords = words.filter(w => w.length > 0).length;
     
     if (totalWords > 0 && singleCharCount / totalWords > 0.5) {
-      // This line has spaced characters - join them
-      return words.join('').replace(/([a-z])([A-Z])/g, '$1 $2'); // Add space between word boundaries
+      // This line has spaced characters - join them but preserve word boundaries
+      let joined = words.join('');
+      // Add space between lowercase followed by uppercase (word boundaries)
+      joined = joined.replace(/([a-z])([A-Z])/g, '$1 $2');
+      // Add space between letter and number
+      joined = joined.replace(/([a-zA-Z])(\d)/g, '$1 $2');
+      // Add space between number and letter
+      joined = joined.replace(/(\d)([a-zA-Z])/g, '$1 $2');
+      // Add space after common punctuation
+      joined = joined.replace(/([.,;:!?])([A-Za-z])/g, '$1 $2');
+      return joined;
     } else {
       // Normal line - just normalize spaces
       return words.join(' ');
@@ -247,9 +257,9 @@ function normalizeText(text) {
   return normalized;
 }
 
-// Simple CV parser (you can enhance this with AI)
-function parseCVText(text) {
-  console.log(`🔍 Parsing CV text (${text.length} characters)`);
+// AI-powered CV parser using OpenAI
+async function parseCVText(text) {
+  console.log(`🔍 Parsing CV text with AI (${text.length} characters)`);
   
   if (!text || text.trim().length === 0) {
     console.warn('⚠️ Empty text provided to parser');
@@ -264,230 +274,259 @@ function parseCVText(text) {
   // Normalize the text first to fix spacing issues
   const normalizedText = normalizeText(text);
   console.log(`📝 Normalized text length: ${normalizedText.length} characters`);
-  console.log(`📝 First 500 chars of normalized:`, normalizedText.substring(0, 500));
   
-  // Enhanced email regex
-  const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/gi;
-  // Enhanced phone regex (supports more formats)
-  const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}/g;
-  
-  const emails = normalizedText.match(emailRegex) || [];
-  const phones = normalizedText.match(phoneRegex) || [];
-  
-  console.log(`📧 Found ${emails.length} email(s):`, emails);
-  console.log(`📞 Found ${phones.length} phone(s):`, phones);
-  
-  // Try to extract name (first non-empty line, cleaned)
-  const lines = normalizedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  let name = '';
-  
-  // Look for name in first few lines (skip common headers)
-  for (let i = 0; i < Math.min(10, lines.length); i++) {
-    const line = lines[i];
-    const lowerLine = line.toLowerCase();
-    
-    // Skip lines that look like headers, labels, or contact info
-    if (line.length > 2 && line.length < 80 && 
-        !lowerLine.includes('resume') && 
-        !lowerLine.includes('curriculum') &&
-        !lowerLine.includes('cv') &&
-        !lowerLine.includes('experience') &&
-        !lowerLine.includes('education') &&
-        !lowerLine.includes('skills') &&
-        !line.includes('@') &&
-        !phoneRegex.test(line) &&
-        // Name should have at least one capital letter
-        /[A-Z]/.test(line) &&
-        // Name shouldn't be all caps (usually headers)
-        line !== line.toUpperCase()) {
-      name = line;
-      break;
-    }
+  // Check if OpenAI is available
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) {
+    console.warn('⚠️ OpenAI API key not found, using fallback extraction');
+    return fallbackExtraction(normalizedText);
   }
   
-  console.log(`👤 Extracted name: "${name}"`);
+  try {
+    // Use OpenAI to extract structured data from CV
+    const { OpenAI } = await import('openai');
+    const openai = new OpenAI({ apiKey: openaiKey });
+    
+    console.log('🤖 Calling OpenAI for CV parsing...');
+    
+    const prompt = `Extract the following information from this CV/resume text. Return ONLY a valid JSON object with these exact fields:
+{
+  "name": "candidate's full name",
+  "email": "email address",
+  "phone": "phone number with country code if available",
+  "role": "most recent or current job title (short version, e.g., 'Software Engineer', 'AI Intern')",
+  "fullRole": "most recent job title with full context (e.g., 'Back-End & AI Intern at Disrupt.com')"
+}
 
-  // Try to extract role from Experience section
-  let role = '';
-  let fullRole = '';
-  
-  // Find the Experience section
-  const experienceKeywords = ['experience', 'work experience', 'professional experience', 'employment', 'work history', 'career'];
-  let experienceStartIndex = -1;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const lowerLine = lines[i].toLowerCase().trim();
-    // Remove extra spaces for matching
-    const cleanLine = lowerLine.replace(/\s+/g, ' ');
-    for (const keyword of experienceKeywords) {
-      if (cleanLine === keyword || 
-          cleanLine.startsWith(keyword + ' ') || 
-          cleanLine.endsWith(' ' + keyword) ||
-          cleanLine.includes(keyword)) {
-        experienceStartIndex = i + 1; // Start after the header
-        break;
-      }
+Rules:
+- Extract the candidate's actual name (usually at top or bottom of CV)
+- For role, prioritize the most recent position in the Experience section
+- Keep role short and professional (just the title)
+- Include company name in fullRole if available
+- If any field is not found, use empty string ""
+- Return ONLY the JSON object, no other text
+
+CV Text:
+${normalizedText.substring(0, 4000)}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a CV parsing assistant. Extract structured data from resumes and return valid JSON only.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 500
+    });
+    
+    const content = response.choices[0].message.content.trim();
+    console.log('🤖 OpenAI response:', content);
+    
+    // Parse the JSON response
+    let parsed;
+    try {
+      // Remove markdown code blocks if present
+      const jsonText = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsed = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('❌ Failed to parse OpenAI JSON response:', parseError.message);
+      console.log('⚠️ Falling back to simple extraction');
+      return fallbackExtraction(normalizedText);
     }
-    if (experienceStartIndex >= 0) break;
+    
+    const result = {
+      name: (parsed.name || '').substring(0, 100),
+      email: parsed.email || '',
+      phone: parsed.phone || '',
+      role: parsed.role || '',
+      fullRole: parsed.fullRole || parsed.role || '',
+    };
+    
+    console.log('✅ AI Parsing result:', JSON.stringify(result, null, 2));
+    return result;
+    
+  } catch (error) {
+    console.error('❌ OpenAI parsing error:', error.message);
+    console.log('⚠️ Falling back to simple extraction');
+    return fallbackExtraction(normalizedText);
   }
+}
+
+// Fallback extraction using simple string methods (no regex)
+function fallbackExtraction(text) {
+  console.log('📝 Using fallback extraction method');
   
-  if (experienceStartIndex >= 0 && experienceStartIndex < lines.length) {
-    console.log(`📋 Found Experience section at line ${experienceStartIndex}`);
-    
-    // Look for the first job title in the experience section
-    // Job titles are typically on their own line or at the start of a line
-    const roleKeywords = [
-      'developer', 'engineer', 'manager', 'designer', 'analyst', 'specialist',
-      'architect', 'consultant', 'director', 'lead', 'senior', 'junior',
-      'programmer', 'administrator', 'coordinator', 'executive', 'officer',
-      'scientist', 'researcher', 'technician', 'assistant'
-    ];
-    
-    // Search in the experience section (next 30 lines after the header)
-    for (let i = experienceStartIndex; i < Math.min(experienceStartIndex + 30, lines.length); i++) {
-      const line = lines[i].trim();
-      if (!line || line.length < 3) continue;
-      
-      const lowerLine = line.toLowerCase();
-      
-      // Stop if we hit another major section
-      if (lowerLine.startsWith('education') || 
-          lowerLine.startsWith('skills') || 
-          lowerLine.startsWith('projects') ||
-          lowerLine.startsWith('certifications') ||
-          lowerLine.startsWith('awards') ||
-          lowerLine.startsWith('publications')) {
-        break;
-      }
-      
-      // Check if this line contains a job title keyword
-      // Normalize the line for better matching
-      const normalizedLine = lowerLine.replace(/\s+/g, ' ');
-      let foundKeyword = false;
-      let matchedKeyword = '';
-      
-      for (const keyword of roleKeywords) {
-        if (normalizedLine.includes(keyword)) {
-          foundKeyword = true;
-          matchedKeyword = keyword;
-          break;
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
+  let name = '';
+  let email = '';
+  let phone = '';
+  let role = '';
+  
+  // Extract email (look for @ symbol)
+  for (const line of lines) {
+    if (line.includes('@') && line.includes('.')) {
+      const words = line.split(/\s+/);
+      for (const word of words) {
+        if (word.includes('@') && word.includes('.')) {
+          // Clean up the email
+          let cleanEmail = word;
+          // Remove common trailing characters
+          while (cleanEmail.endsWith('.') || cleanEmail.endsWith(',') || cleanEmail.endsWith('|')) {
+            cleanEmail = cleanEmail.slice(0, -1);
+          }
+          if (cleanEmail.length > 5) {
+            email = cleanEmail;
+            console.log('📧 Found email:', email);
+            break;
+          }
         }
       }
+      if (email) break;
+    }
+  }
+  
+  // Extract phone (look for + followed by digits, or long digit sequences)
+  for (const line of lines) {
+    if (line.includes('+')) {
+      const words = line.split(/\s+/);
+      for (const word of words) {
+        if (word.startsWith('+')) {
+          // Extract digits after +
+          let digits = '';
+          for (const char of word) {
+            if (char >= '0' && char <= '9') {
+              digits += char;
+            } else if (char === '+') {
+              continue;
+            } else {
+              break;
+            }
+          }
+          if (digits.length >= 10) {
+            phone = '+' + digits;
+            console.log('📞 Found phone:', phone);
+            break;
+          }
+        }
+      }
+      if (phone) break;
+    }
+  }
+  
+  // Extract name (look for proper capitalized words at start or end)
+  const skipWords = ['resume', 'curriculum', 'cv', 'experience', 'education', 'skills', 'projects', 'certifications'];
+  const searchLines = [...lines.slice(0, 10), ...lines.slice(-5)];
+  
+  for (const line of searchLines) {
+    const lower = line.toLowerCase();
+    
+    // Skip lines with skip words
+    if (skipWords.some(word => lower.includes(word))) continue;
+    
+    // Skip lines with email or phone
+    if (line.includes('@') || line.includes('+')) continue;
+    
+    // Skip long lines
+    if (line.length > 50) continue;
+    
+    // Check if line has 2-4 capitalized words
+    const words = line.split(/\s+/);
+    if (words.length >= 2 && words.length <= 4) {
+      const allCapitalized = words.every(word => {
+        if (word.length === 0) return false;
+        const firstChar = word[0];
+        return firstChar >= 'A' && firstChar <= 'Z';
+      });
       
-      if (foundKeyword) {
-        // This looks like a job title line
-        // Extract the job title (usually the first part of the line, before dates, company names, etc.)
-        let jobTitle = line.trim();
-        
-        // Remove common patterns that come after job titles
-        // Dates: "2020 - 2021", "Jan 2020 - Present", etc.
-        jobTitle = jobTitle.replace(/\d{4}\s*[-–—]\s*\d{4}|\d{4}\s*[-–—]\s*(present|current|now)/gi, '');
-        jobTitle = jobTitle.replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\s*[-–—]\s*(present|current|now|\d{4})/gi, '');
-        
-        // Remove company names (often after "at", "|", "-", or "•")
-        jobTitle = jobTitle.split(/ at | \| | - | • |\s{2,}/)[0].trim();
-        
-        // Remove extra whitespace
-        jobTitle = jobTitle.replace(/\s+/g, ' ').trim();
-        
-        // Make sure it contains the keyword we found
-        if (jobTitle.toLowerCase().includes(matchedKeyword) && jobTitle.length > 5 && jobTitle.length < 100) {
-          fullRole = jobTitle;
+      if (allCapitalized) {
+        name = line;
+        console.log('👤 Found name:', name);
+        break;
+      }
+    }
+  }
+  
+  // Extract role (look for common job titles in Experience section)
+  const jobWords = ['intern', 'developer', 'engineer', 'designer', 'manager', 'analyst', 'freelancer', 'consultant'];
+  let inExperience = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lower = line.toLowerCase();
+    
+    // Check if we're in Experience section
+    if (lower === 'experience' || lower.includes('work experience')) {
+      inExperience = true;
+      continue;
+    }
+    
+    // Stop at next section
+    if (inExperience && (lower === 'education' || lower === 'skills' || lower === 'projects')) {
+      break;
+    }
+    
+    // Look for job titles
+    if (inExperience || i < 30) {
+      for (const jobWord of jobWords) {
+        if (lower.includes(jobWord)) {
+          // Extract the job title part
+          let jobTitle = line;
           
-          // Extract short version (just the title, before "with", "at", etc.)
-          const stopWords = [' with ', ' at ', ' in ', ' for ', ' who ', ' that ', ' and ', ' responsible '];
-          let shortRole = fullRole;
+          // Remove bullets
+          if (jobTitle.startsWith('•')) {
+            jobTitle = jobTitle.substring(1).trim();
+          }
           
-          for (const stopWord of stopWords) {
-            const index = shortRole.toLowerCase().indexOf(stopWord);
-            if (index > 0) {
-              shortRole = shortRole.substring(0, index).trim();
+          // Split by common separators and take first part
+          const separators = [' – ', ' — ', ' - ', ' | '];
+          for (const sep of separators) {
+            if (jobTitle.includes(sep)) {
+              jobTitle = jobTitle.split(sep)[0].trim();
               break;
             }
           }
           
-          role = shortRole;
-          console.log(`💼 Found job title in Experience section: "${role}"`);
-          break;
+          // Remove dates (look for 4-digit years)
+          const words = jobTitle.split(/\s+/);
+          const filtered = words.filter(word => {
+            // Check if word contains 4 consecutive digits
+            let digitCount = 0;
+            for (const char of word) {
+              if (char >= '0' && char <= '9') {
+                digitCount++;
+                if (digitCount >= 4) return false;
+              }
+            }
+            return true;
+          });
+          
+          jobTitle = filtered.join(' ').trim();
+          
+          if (jobTitle.length >= 5 && jobTitle.length <= 80) {
+            role = jobTitle;
+            console.log('💼 Found role:', role);
+            break;
+          }
         }
       }
+      if (role) break;
     }
   }
   
-  // Fallback: if we didn't find role in experience section, try the old method
-  if (!role) {
-    console.log(`⚠️ No role found in Experience section, trying fallback method...`);
-    const roleKeywords = [
-      'developer', 'engineer', 'manager', 'designer', 'analyst', 'specialist',
-      'architect', 'consultant', 'director', 'lead', 'senior', 'junior',
-      'programmer', 'administrator', 'coordinator', 'executive', 'officer',
-      'scientist', 'researcher', 'technician', 'assistant'
-    ];
-    
-    let roleStartIndex = -1;
-    
-    // Find the line with role keywords (but skip if it's in education section)
-    let inEducationSection = false;
-    for (let i = 0; i < Math.min(50, lines.length); i++) {
-      const lowerLine = lines[i].toLowerCase();
-      
-      // Check if we're in education section
-      if (lowerLine.includes('education') || lowerLine.includes('academic')) {
-        inEducationSection = true;
-        continue;
-      }
-      
-      // If we hit experience section, we're past education
-      if (lowerLine.includes('experience') || lowerLine.includes('work')) {
-        inEducationSection = false;
-      }
-      
-      // Skip education section
-      if (inEducationSection) continue;
-      
-      for (const keyword of roleKeywords) {
-        if (lowerLine.includes(keyword)) {
-          roleStartIndex = i;
-          break;
-        }
-      }
-      if (roleStartIndex >= 0) break;
-    }
-    
-    if (roleStartIndex >= 0) {
-      const line = lines[roleStartIndex];
-      fullRole = line.replace(/\s+/g, ' ').trim();
-      
-      // Extract short version
-      const stopWords = [' with ', ' at ', ' in ', ' for ', ' who ', ' that ', ' and '];
-      let shortRole = fullRole;
-      
-      for (const stopWord of stopWords) {
-        const index = shortRole.toLowerCase().indexOf(stopWord);
-        if (index > 0) {
-          shortRole = shortRole.substring(0, index).trim();
-          break;
-        }
-      }
-      
-      role = shortRole;
-    }
-  }
-
-  console.log(`💼 Extracted role (short): "${role}"`);
-  console.log(`💼 Extracted role (full): "${fullRole}"`);
-  
-  const result = {
+  return {
     name: name.substring(0, 100),
-    email: emails[0] || '',
-    phone: phones[0] || '',
-    role: role || '',
-    fullRole: fullRole || role || '', // Include full role for expand feature
+    email: email,
+    phone: phone,
+    role: role,
+    fullRole: role,
   };
-  
-  console.log('✅ Parsing result:', result);
-  
-  return result;
 }
 
 // Upload CV and extract data
@@ -517,7 +556,7 @@ router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) =>
         return res.status(400).json({ error: 'Unsupported file format. Please upload PDF, DOC, or DOCX.' });
       }
 
-      const extractedData = parseCVText(text);
+      const extractedData = await parseCVText(text);
 
       // Check if we got meaningful data
       const hasData = extractedData.name || extractedData.email || extractedData.phone;

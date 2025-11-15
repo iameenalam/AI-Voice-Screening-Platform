@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -27,18 +28,24 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/upload-cv" element={<UploadCV />} />
-          <Route path="/screening-setup" element={<ScreeningSetup />} />
-          <Route path="/mic-test" element={<MicTest />} />
-          <Route path="/interview" element={<Interview />} />
-          <Route path="/results" element={<Results />} />
-          <Route path="/download" element={<Download />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/transcript" element={<Transcript />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Protected routes - require authentication */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/upload-cv" element={<UploadCV />} />
+            <Route path="/screening-setup" element={<ScreeningSetup />} />
+            <Route path="/mic-test" element={<MicTest />} />
+            <Route path="/interview" element={<Interview />} />
+            <Route path="/results" element={<Results />} />
+            <Route path="/download" element={<Download />} />
+            <Route path="/transcript" element={<Transcript />} />
+          </Route>
+          
+          {/* Catch-all route - must be last */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

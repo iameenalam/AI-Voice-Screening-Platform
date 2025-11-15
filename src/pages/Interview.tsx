@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Mic, Phone, Loader2, ArrowRight } from "lucide-react";
+import { Mic, Phone, Loader2, ArrowRight, Volume2, VolumeX } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -25,12 +25,19 @@ const Interview = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [responses, setResponses] = useState<string[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const accumulatedTranscriptRef = useRef<string>("");
+  const lastTranscriptTimeRef = useRef<number>(Date.now());
+  const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recognitionRestartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isRestartingRef = useRef<boolean>(false);
+  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     if (!interviewId) {
@@ -77,15 +84,22 @@ const Interview = () => {
     } else {
       setInterviewStarted(true);
       startVoiceRecognition();
-      askQuestion(0);
+      
+      // Small delay before asking first question to ensure everything is ready
+      setTimeout(() => {
+        askQuestion(0);
+      }, 500);
     }
   };
 
   const startVoiceRecognition = async () => {
     try {
+      console.log('🎤 Starting voice recognition...');
+      
       // Start microphone for audio visualization
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
+      console.log('✅ Microphone access granted');
 
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
@@ -108,66 +122,277 @@ const Interview = () => {
       };
       checkAudioLevel();
 
-      // Start speech recognition
+      // Start speech recognition with optimized settings
       if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
         const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
+        
+        // CRITICAL: These settings make it truly continuous
+        recognition.continuous = true;  // Keep listening
+        recognition.interimResults = true;  // Show results as you speak
         recognition.lang = 'en-US';
+        recognition.maxAlternatives = 1;
+        
+        // Chrome-specific optimizations
+        if ('webkitSpeechRecognition' in window) {
+          (recognition as any).continuous = true;
+          (recognition as any).interimResults = true;
+        }
+
+        console.log('🎙️ Speech recognition initialized with continuous mode');
+
+        recognition.onstart = () => {
+          console.log('✅ Speech recognition started');
+        };
 
         recognition.onresult = (event: any) => {
           let interimTranscript = '';
           let finalTranscript = '';
 
+          // Process all results from the last processed index
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
+            
             if (event.results[i].isFinal) {
               finalTranscript += transcript + ' ';
-              // Accumulate final transcripts
-              accumulatedTranscriptRef.current += transcript + ' ';
+              console.log(`📝 Final transcript: "${transcript}"`);
             } else {
               interimTranscript += transcript;
+              console.log(`💭 Interim transcript: "${transcript}"`);
             }
           }
 
+          // Accumulate final transcripts
+          if (finalTranscript) {
+            accumulatedTranscriptRef.current += finalTranscript;
+            lastTranscriptTimeRef.current = Date.now(); // Update activity timestamp
+            console.log(`📊 Accumulated total: ${accumulatedTranscriptRef.current.length} chars`);
+            console.log(`📄 Full text: "${accumulatedTranscriptRef.current}"`);
+          }
+
           // Display accumulated final transcript + current interim transcript
-          const displayText = accumulatedTranscriptRef.current + interimTranscript;
+          const displayText = (accumulatedTranscriptRef.current + interimTranscript).trim();
           setCurrentResponse(displayText);
           
           // Update recording state based on speech
-          if (displayText.trim() || interimTranscript.trim()) {
+          if (displayText) {
             setIsRecording(true);
+            lastTranscriptTimeRef.current = Date.now(); // Update activity timestamp
           }
+          
+          // Log current display state
+          console.log(`🖥️ Display text length: ${displayText.length} chars`);
         };
 
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          if (event.error === 'no-speech') {
-            // Restart recognition if it stops due to silence
-            setTimeout(() => {
-              if (interviewStarted) {
-                recognition.start();
-              }
-            }, 1000);
+          console.error('❌ Speech recognition error:', event.error);
+          console.log(`   Error details:`, event);
+          
+          // Don't restart on certain errors
+          if (event.error === 'aborted') {
+            console.log('⚠️ Recognition aborted (normal during restart)');
+            return;
           }
+          
+          if (event.error === 'not-allowed') {
+            console.log('❌ Microphone permission denied');
+            toast.error('Microphone access denied. Please allow microphone access.');
+            return;
+          }
+          
+          // Auto-restart on ALL other errors
+          console.log('🔄 Auto-restarting after error...');
+          setTimeout(() => {
+            try {
+              const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
+              if (shouldRestart && recognition) {
+                recognition.start();
+                console.log('✅ Recognition restarted after error');
+              }
+            } catch (err: any) {
+              console.error('❌ Failed to restart after error:', err.message);
+              // Ignore "already started" errors
+              if (!err.message?.includes('already started')) {
+                toast.error('Speech recognition failed. Click "Restart Mic" button.');
+              }
+            }
+          }, 500);
         };
 
         recognition.onend = () => {
-          // Auto-restart recognition if interview is still in progress
-          if (interviewStarted) {
-            setTimeout(() => recognition.start(), 100);
+          const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+          console.log(`⏹️ [${timestamp}] Speech recognition ended`);
+          
+          // Clear any pending restart
+          if (recognitionRestartTimeoutRef.current) {
+            clearTimeout(recognitionRestartTimeoutRef.current);
+          }
+          
+          // Use DOM check to avoid stale closure
+          const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
+          console.log(`   Should restart: ${shouldRestart}`);
+          
+          if (shouldRestart && !isRestartingRef.current) {
+            isRestartingRef.current = true;
+            console.log('🔄 Immediately restarting speech recognition...');
+            
+            // Restart with NO delay for seamless continuation
+            recognitionRestartTimeoutRef.current = setTimeout(() => {
+              try {
+                recognition.start();
+                isRestartingRef.current = false;
+                console.log(`✅ [${new Date().toISOString().split('T')[1].split('.')[0]}] Recognition restarted`);
+              } catch (err: any) {
+                isRestartingRef.current = false;
+                console.error('❌ Restart failed:', err.message);
+                
+                // If already started, that's actually good
+                if (err.message?.includes('already started')) {
+                  console.log('✅ Recognition already running (good!)');
+                } else {
+                  // Try one more time after a longer delay
+                  recognitionRestartTimeoutRef.current = setTimeout(() => {
+                    try {
+                      recognition.start();
+                      console.log('✅ Recognition restarted on second attempt');
+                    } catch (err2) {
+                      console.error('❌ Second restart attempt failed');
+                      toast.error('Speech recognition stopped. Click "Restart Mic".');
+                    }
+                  }, 500);
+                }
+              }
+            }, 0); // ZERO delay for instant restart
+          } else if (isRestartingRef.current) {
+            console.log('⏸️ Already restarting, skipping...');
+          } else {
+            console.log('⏹️ Interview not active, not restarting');
           }
         };
 
         recognition.start();
         setRecognition(recognition);
+        console.log('🎤 Speech recognition service started');
+        
+        // CRITICAL: Force restart every 55 seconds to prevent Chrome's 60s timeout
+        let restartCounter = 0;
+        const forceRestartInterval = setInterval(() => {
+          const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
+          if (shouldRestart) {
+            restartCounter++;
+            console.log(`🔄 [Forced restart #${restartCounter}] Preventing timeout...`);
+            try {
+              recognition.stop(); // This will trigger onend which will restart
+            } catch (err) {
+              console.error('❌ Forced restart failed:', err);
+            }
+          } else {
+            clearInterval(forceRestartInterval);
+          }
+        }, 55000); // Every 55 seconds (before Chrome's 60s limit)
+        
+        // Start health check - restart if no activity for 10 seconds
+        healthCheckIntervalRef.current = setInterval(() => {
+          const timeSinceLastTranscript = Date.now() - lastTranscriptTimeRef.current;
+          const secondsSinceLastTranscript = Math.floor(timeSinceLastTranscript / 1000);
+          
+          // Only log if it's been a while
+          if (secondsSinceLastTranscript > 5) {
+            console.log(`🏥 Health check: ${secondsSinceLastTranscript}s since last transcript`);
+          }
+          
+          // If no transcript for 10 seconds and interview is active, restart
+          const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
+          if (timeSinceLastTranscript > 10000 && shouldRestart) {
+            console.log('⚠️ No activity for 10s, forcing restart...');
+            try {
+              recognition.stop();
+              setTimeout(() => {
+                try {
+                  recognition.start();
+                  console.log('✅ Recognition restarted by health check');
+                  lastTranscriptTimeRef.current = Date.now();
+                } catch (err) {
+                  console.error('❌ Health check restart failed:', err);
+                }
+              }, 300);
+            } catch (err) {
+              console.error('❌ Health check stop failed:', err);
+            }
+          }
+        }, 3000); // Check every 3 seconds
+        
       } else {
+        console.error('❌ Speech recognition not supported');
         toast.error("Speech recognition not supported in this browser");
       }
     } catch (error) {
-      console.error('Failed to start voice recognition:', error);
+      console.error('❌ Failed to start voice recognition:', error);
       toast.error("Failed to access microphone");
+    }
+  };
+
+  // Text-to-Speech: Read question aloud
+  const speakQuestion = (questionText: string) => {
+    // Don't speak if muted
+    if (isMuted) {
+      console.log('🔇 Speech muted, skipping...');
+      return;
+    }
+
+    // Cancel any ongoing speech
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    console.log(`🔊 Speaking question: "${questionText.substring(0, 50)}..."`);
+
+    const utterance = new SpeechSynthesisUtterance(questionText);
+    
+    // Configure voice settings
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1.0; // Normal pitch
+    utterance.volume = 1.0; // Full volume
+    utterance.lang = 'en-US';
+
+    // Try to use a natural-sounding voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice => 
+      voice.name.includes('Google') || 
+      voice.name.includes('Microsoft') ||
+      voice.name.includes('Natural')
+    );
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+      console.log(`🎤 Using voice: ${preferredVoice.name}`);
+    }
+
+    // Event handlers
+    utterance.onstart = () => {
+      console.log('🔊 Started speaking');
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      console.log('✅ Finished speaking');
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = (event) => {
+      console.error('❌ Speech error:', event.error);
+      setIsSpeaking(false);
+    };
+
+    speechSynthesisRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Stop speaking
+  const stopSpeaking = () => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      console.log('⏹️ Stopped speaking');
     }
   };
 
@@ -196,28 +421,43 @@ const Interview = () => {
       return;
     }
 
+    console.log(`\n❓ Asking question ${index + 1}/${questions.length}`);
     const question = questions[index];
+    
+    // Reset for new question
+    console.log('🔄 Resetting transcript for new question');
     setCurrentResponse("");
-    accumulatedTranscriptRef.current = ""; // Reset accumulated transcript for new question
+    accumulatedTranscriptRef.current = "";
     setIsRecording(false);
     
     // Save question to transcript
+    console.log(`📝 Saving question to transcript: "${question.substring(0, 60)}..."`);
     await api.addTranscriptEntry(interviewId!, 'AI', question, Date.now(), index);
+    
+    // Read question aloud
+    speakQuestion(question);
+    
+    console.log('✅ Question saved and spoken, ready for response\n');
   };
 
   const handleNextQuestion = async () => {
+    console.log('\n➡️ Moving to next question...');
+    
     // Use accumulated transcript (final response without interim results)
-    // Also check currentResponse in case accumulatedTranscriptRef hasn't been updated yet
     let finalResponse = accumulatedTranscriptRef.current.trim();
     
     // If accumulated is empty but currentResponse has content, use that
     if (!finalResponse && currentResponse.trim()) {
+      console.log('⚠️ Using currentResponse as fallback');
       finalResponse = currentResponse.trim();
-      // Update the ref so it's saved properly
       accumulatedTranscriptRef.current = finalResponse;
     }
     
+    console.log(`📝 Final response length: ${finalResponse.length} characters`);
+    console.log(`📄 Response preview: "${finalResponse.substring(0, 100)}..."`);
+    
     if (!finalResponse) {
+      console.log('❌ No response provided');
       toast.error("Please provide a response before moving to the next question");
       return;
     }
@@ -226,11 +466,14 @@ const Interview = () => {
     
     try {
       // Save response to transcript
+      console.log(`💾 Saving candidate response for Q${currentQuestion + 1}...`);
       await api.addTranscriptEntry(interviewId!, 'Candidate', finalResponse, Date.now(), currentQuestion);
+      console.log('✅ Response saved to transcript');
       
       // Analyze sentiment
       const sentimentScore = analyzeSentiment(finalResponse);
       setSentiment(sentimentScore);
+      console.log(`📊 Sentiment score: ${sentimentScore.toFixed(2)}`);
       
       // Store response
       const newResponses = [...responses];
@@ -239,14 +482,19 @@ const Interview = () => {
       
       // Move to next question or complete
       if (currentQuestion < questions.length - 1) {
+        console.log(`✅ Moving to question ${currentQuestion + 2}/${questions.length}`);
         setCurrentQuestion(currentQuestion + 1);
+        
+        // Small delay before asking next question to ensure state is updated
+        await new Promise(resolve => setTimeout(resolve, 500));
         await askQuestion(currentQuestion + 1);
       } else {
+        console.log('🏁 All questions answered, completing interview...');
         await completeInterview();
-        return; // completeInterview handles navigation
+        return;
       }
     } catch (error) {
-      console.error('Error submitting answer:', error);
+      console.error('❌ Error submitting answer:', error);
       toast.error("Failed to submit answer. Please try again.");
     } finally {
       setLoading(false);
@@ -254,30 +502,55 @@ const Interview = () => {
   };
 
   const stopRecording = () => {
+    console.log('\n⏹️ Stopping recording...');
+    
+    // Stop text-to-speech
+    stopSpeaking();
+    
+    if (recognitionRestartTimeoutRef.current) {
+      clearTimeout(recognitionRestartTimeoutRef.current);
+      console.log('✅ Restart timeout cleared');
+    }
+    if (healthCheckIntervalRef.current) {
+      clearInterval(healthCheckIntervalRef.current);
+      console.log('✅ Health check cleared');
+    }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      console.log('✅ Animation frame cancelled');
     }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track: any) => track.stop());
+      console.log('✅ Media stream stopped');
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
+      console.log('✅ Audio context closed');
     }
     if (recognition) {
+      isRestartingRef.current = false;
       recognition.stop();
+      console.log('✅ Speech recognition stopped');
     }
+    
+    setInterviewStarted(false);
+    console.log('✅ Recording stopped completely\n');
   };
 
   const completeInterview = async () => {
+    console.log('\n🏁 Completing interview...');
     stopRecording();
     
     setLoading(true);
+    console.log('📡 Sending completion request to server...');
     const result = await api.completeInterview(interviewId!);
     setLoading(false);
     
     if (result.error) {
+      console.error('❌ Failed to complete interview:', result.error);
       toast.error(result.error);
     } else {
+      console.log('✅ Interview completed successfully!');
       toast.success("Interview completed successfully!");
       navigate("/results", { state: { interviewId } });
     }
@@ -316,6 +589,43 @@ const Interview = () => {
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-sm font-medium text-red-400">Recording</span>
                   </div>
+                  
+                  {/* Speaking indicator */}
+                  {isSpeaking && (
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <Volume2 className="w-4 h-4 text-blue-500 animate-pulse" />
+                      <span className="text-sm font-medium text-blue-400">Speaking</span>
+                    </div>
+                  )}
+                  
+                  {/* Mute/Unmute button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsMuted(!isMuted);
+                      if (!isMuted) {
+                        stopSpeaking();
+                        toast.info('Voice muted');
+                      } else {
+                        toast.info('Voice unmuted');
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    {isMuted ? (
+                      <>
+                        <VolumeX className="h-4 w-4" />
+                        <span className="hidden sm:inline">Unmute</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="h-4 w-4" />
+                        <span className="hidden sm:inline">Mute</span>
+                      </>
+                    )}
+                  </Button>
+                  
                   <div className="px-3 py-1.5 rounded-lg bg-accent/30 border border-border/30">
                     <span className="text-sm font-mono font-semibold">{formatTime(timer)}</span>
                   </div>
@@ -326,7 +636,7 @@ const Interview = () => {
         </div>
       </nav>
 
-      <div className="flex-1 flex items-center justify-center relative z-10">
+      <div className="flex-1 flex items-center justify-center relative z-10" data-interview-active={interviewStarted ? "true" : "false"}>
         <div className="container mx-auto px-4 py-8 md:py-12 w-full">
           <div className="max-w-4xl mx-auto">
             {!interviewStarted ? (
@@ -385,7 +695,33 @@ const Interview = () => {
                     
                     {/* Current response display - always show when recording or has content */}
                     <div className="mt-4 p-4 bg-accent/30 rounded-lg text-left min-h-[80px]">
-                      <p className="text-sm text-muted-foreground mb-2 font-medium">Your response:</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm text-muted-foreground font-medium">Your response:</p>
+                        {!currentResponse && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              console.log('🔄 Manual restart requested');
+                              if (recognition) {
+                                try {
+                                  recognition.stop();
+                                  setTimeout(() => {
+                                    recognition.start();
+                                    toast.success('Microphone restarted');
+                                  }, 500);
+                                } catch (err) {
+                                  console.error('Manual restart failed:', err);
+                                  toast.error('Failed to restart microphone');
+                                }
+                              }
+                            }}
+                            className="text-xs"
+                          >
+                            🔄 Restart Mic
+                          </Button>
+                        )}
+                      </div>
                       {currentResponse ? (
                         <p className="text-sm md:text-base whitespace-pre-wrap break-words">{currentResponse}</p>
                       ) : (
