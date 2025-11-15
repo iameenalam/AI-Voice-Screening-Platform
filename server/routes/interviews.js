@@ -20,15 +20,19 @@ const getOpenAIClient = () => {
 // Generate AI-suggested questions based on role
 router.post('/generate-questions', authenticate, async (req, res) => {
   try {
+    console.log('\n❓ === GENERATING INTERVIEW QUESTIONS ===');
     const { role } = req.body;
 
     if (!role) {
+      console.log('❌ Role not provided');
       return res.status(400).json({ error: 'Role is required' });
     }
 
+    console.log(`💼 Role: ${role}`);
+
     const openai = getOpenAIClient();
     if (!openai) {
-      // Fallback questions if OpenAI is not configured
+      console.log('⚠️ OpenAI not configured, using fallback questions');
       return res.json({
         questions: [
           `Tell me about your experience with ${role}.`,
@@ -40,10 +44,11 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       });
     }
 
-    const prompt = `Generate 3-5 professional interview questions for a ${role} position. Return only the questions, one per line, without numbering or bullets.`;
+    const prompt = `Generate 5 professional interview questions for a ${role} position. Return only the questions, one per line, without numbering or bullets.`;
 
+    console.log('🤖 Calling OpenAI to generate questions...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
@@ -54,7 +59,8 @@ router.post('/generate-questions', authenticate, async (req, res) => {
           content: prompt,
         },
       ],
-      max_tokens: 200,
+      temperature: 0.7,
+      max_tokens: 300,
     });
 
     const questionsText = completion.choices[0].message.content;
@@ -64,9 +70,13 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       .filter(q => q.length > 0)
       .slice(0, 5);
 
+    console.log(`✅ Generated ${questions.length} questions`);
+    questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.substring(0, 60)}...`));
+    console.log('='.repeat(50) + '\n');
+
     res.json({ questions });
   } catch (error) {
-    console.error('OpenAI error:', error);
+    console.error('❌ OpenAI error:', error.message);
     // Fallback questions
     res.json({
       questions: [
@@ -81,11 +91,16 @@ router.post('/generate-questions', authenticate, async (req, res) => {
 // Create interview
 router.post('/', authenticate, async (req, res) => {
   try {
+    console.log('\n📝 === CREATING NEW INTERVIEW ===');
     const { candidateId, questions } = req.body;
 
     if (!candidateId || !questions || !Array.isArray(questions)) {
+      console.log('❌ Missing candidate ID or questions');
       return res.status(400).json({ error: 'Candidate ID and questions are required' });
     }
+
+    console.log(`👤 Candidate ID: ${candidateId}`);
+    console.log(`❓ Questions: ${questions.length}`);
 
     const candidate = await Candidate.findOne({
       _id: candidateId,
@@ -93,8 +108,11 @@ router.post('/', authenticate, async (req, res) => {
     });
 
     if (!candidate) {
+      console.log('❌ Candidate not found');
       return res.status(404).json({ error: 'Candidate not found' });
     }
+
+    console.log(`✅ Candidate found: ${candidate.name}`);
 
     const interview = new Interview({
       candidateId,
@@ -104,8 +122,12 @@ router.post('/', authenticate, async (req, res) => {
     });
 
     await interview.save();
+    console.log(`✅ Interview created: ${interview._id}`);
+    console.log('='.repeat(50) + '\n');
+    
     res.status(201).json(interview);
   } catch (error) {
+    console.error('❌ Create interview error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -113,12 +135,16 @@ router.post('/', authenticate, async (req, res) => {
 // Start interview
 router.post('/:id/start', authenticate, async (req, res) => {
   try {
+    console.log('\n▶️  === STARTING INTERVIEW ===');
+    console.log(`📋 Interview ID: ${req.params.id}`);
+    
     const interview = await Interview.findOne({
       _id: req.params.id,
       recruiterId: req.userId,
     });
 
     if (!interview) {
+      console.log('❌ Interview not found');
       return res.status(404).json({ error: 'Interview not found' });
     }
 
@@ -126,8 +152,12 @@ router.post('/:id/start', authenticate, async (req, res) => {
     interview.startedAt = new Date();
     await interview.save();
 
+    console.log(`✅ Interview started at ${interview.startedAt.toISOString()}`);
+    console.log('='.repeat(50) + '\n');
+    
     res.json(interview);
   } catch (error) {
+    console.error('❌ Start interview error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -137,12 +167,16 @@ router.post('/:id/transcript', authenticate, async (req, res) => {
   try {
     const { speaker, text, timestamp, questionIndex } = req.body;
 
+    console.log(`\n💬 Adding transcript entry: ${speaker} (Q${questionIndex >= 0 ? questionIndex + 1 : '?'})`);
+    console.log(`   Text: ${text.substring(0, 80)}${text.length > 80 ? '...' : ''}`);
+
     const interview = await Interview.findOne({
       _id: req.params.id,
       recruiterId: req.userId,
     });
 
     if (!interview) {
+      console.log('❌ Interview not found');
       return res.status(404).json({ error: 'Interview not found' });
     }
 
@@ -154,8 +188,11 @@ router.post('/:id/transcript', authenticate, async (req, res) => {
     });
 
     await interview.save();
+    console.log(`✅ Transcript saved (total entries: ${interview.transcript.length})`);
+    
     res.json(interview);
   } catch (error) {
+    console.error('❌ Transcript error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -163,15 +200,20 @@ router.post('/:id/transcript', authenticate, async (req, res) => {
 // Analyze response with AI
 router.post('/:id/analyze', authenticate, async (req, res) => {
   try {
+    console.log('\n🔍 === ANALYZING INTERVIEW RESPONSE ===');
     const { question, response } = req.body;
 
     if (!question || !response) {
+      console.log('❌ Missing question or response');
       return res.status(400).json({ error: 'Question and response are required' });
     }
 
+    console.log(`📝 Question: ${question.substring(0, 100)}...`);
+    console.log(`💬 Response: ${response.substring(0, 100)}...`);
+
     const openai = getOpenAIClient();
     if (!openai) {
-      // Fallback analysis if OpenAI is not configured
+      console.log('⚠️ OpenAI not configured, using fallback analysis');
       return res.json({
         sentiment: 0.7,
         confidence: 'Medium',
@@ -180,46 +222,59 @@ router.post('/:id/analyze', authenticate, async (req, res) => {
       });
     }
 
-    const prompt = `Analyze this interview response:
+    const prompt = `Analyze this interview response and return ONLY a valid JSON object with no additional text:
 
 Question: ${question}
 Response: ${response}
 
-Provide:
-1. A sentiment score from -1 to 1 (where 1 is very positive)
-2. Confidence level (Low, Medium, High)
-3. Any red flags (if none, say "None")
-4. A brief summary (1-2 sentences)
-
-Format as JSON:
+Return this exact JSON structure:
 {
   "sentiment": 0.75,
   "confidence": "High",
   "redFlags": [],
   "summary": "Brief summary here"
-}`;
+}
+
+Rules:
+- sentiment: number between -1 and 1 (1 is very positive)
+- confidence: "Low", "Medium", or "High"
+- redFlags: array of strings (empty if none)
+- summary: 1-2 sentences`;
 
     try {
+      console.log('🤖 Calling OpenAI for response analysis...');
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
-            content: 'You are an expert interviewer analyzing candidate responses. Return only valid JSON.',
+            content: 'You are an expert interviewer analyzing candidate responses. Return ONLY valid JSON with no markdown formatting.',
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        response_format: { type: 'json_object' },
+        temperature: 0.3,
         max_tokens: 300,
       });
 
-      const analysis = JSON.parse(completion.choices[0].message.content);
+      const content = completion.choices[0].message.content.trim();
+      console.log('📥 OpenAI raw response:', content.substring(0, 200));
+      
+      // Remove markdown code blocks if present
+      const jsonText = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const analysis = JSON.parse(jsonText);
+      
+      console.log('✅ Analysis complete:', {
+        sentiment: analysis.sentiment,
+        confidence: analysis.confidence,
+        redFlagsCount: analysis.redFlags?.length || 0
+      });
+      
       res.json(analysis);
     } catch (error) {
-      console.error('OpenAI analysis error:', error);
+      console.error('❌ OpenAI analysis error:', error.message);
       // Fallback analysis
       res.json({
         sentiment: 0.7,
@@ -229,6 +284,7 @@ Format as JSON:
       });
     }
   } catch (error) {
+    console.error('❌ Analysis route error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -236,14 +292,21 @@ Format as JSON:
 // Complete interview and generate summary
 router.post('/:id/complete', authenticate, async (req, res) => {
   try {
+    console.log('\n🏁 === COMPLETING INTERVIEW ===');
+    console.log(`📋 Interview ID: ${req.params.id}`);
+    
     const interview = await Interview.findOne({
       _id: req.params.id,
       recruiterId: req.userId,
     }).populate('candidateId');
 
     if (!interview) {
+      console.log('❌ Interview not found');
       return res.status(404).json({ error: 'Interview not found' });
     }
+
+    console.log(`👤 Candidate: ${interview.candidateId?.name || 'Unknown'}`);
+    console.log(`📝 Transcript entries: ${interview.transcript?.length || 0}`);
 
     interview.status = 'completed';
     interview.completedAt = new Date();
@@ -252,6 +315,7 @@ router.post('/:id/complete', authenticate, async (req, res) => {
       interview.duration = Math.floor(
         (interview.completedAt - interview.startedAt) / 1000
       );
+      console.log(`⏱️ Duration: ${interview.duration} seconds`);
     }
 
     const openai = getOpenAIClient();
@@ -260,8 +324,12 @@ router.post('/:id/complete', authenticate, async (req, res) => {
     const sentiments = [];
     const candidateResponses = interview.transcript.filter(t => t.speaker === 'Candidate');
     
+    console.log(`💬 Candidate responses to analyze: ${candidateResponses.length}`);
+    
     if (openai && candidateResponses.length > 0) {
       try {
+        console.log('🔍 Starting response analysis...');
+        
         // Group responses by question index
         const responsesByQuestion = {};
         candidateResponses.forEach(entry => {
@@ -280,71 +348,89 @@ router.post('/:id/complete', authenticate, async (req, res) => {
           }
         });
 
+        console.log(`📊 Analyzing ${Object.keys(responsesByQuestion).length} question-response pairs...`);
+
         // Analyze each response
+        let analyzedCount = 0;
         for (const [qIndex, responses] of Object.entries(responsesByQuestion)) {
           const question = questionsByIndex[qIndex] || 'General question';
           const responseText = responses.join(' ');
           
           if (responseText.trim()) {
             try {
+              console.log(`  🔍 Analyzing response ${parseInt(qIndex) + 1}...`);
+              
               const analysisResult = await openai.chat.completions.create({
-                model: 'gpt-4',
+                model: 'gpt-3.5-turbo',
                 messages: [
                   {
                     role: 'system',
-                    content: 'You are an expert interviewer analyzing candidate responses. Return only valid JSON.',
+                    content: 'You are an expert interviewer analyzing candidate responses. Return ONLY valid JSON with no markdown.',
                   },
                   {
                     role: 'user',
-                    content: `Analyze this interview response:
+                    content: `Analyze this interview response and return ONLY valid JSON:
 
 Question: ${question}
 Response: ${responseText}
 
-Provide:
-1. A sentiment score from -1 to 1 (where 1 is very positive)
-2. Confidence level (Low, Medium, High)
-3. Any red flags (if none, say "None")
-4. A brief summary (1-2 sentences)
-
-Format as JSON:
+Return this exact structure:
 {
   "sentiment": 0.75,
   "confidence": "High",
   "redFlags": [],
-  "summary": "Brief summary here"
+  "summary": "Brief summary"
 }`,
                   },
                 ],
-                response_format: { type: 'json_object' },
+                temperature: 0.3,
                 max_tokens: 300,
               });
 
-              const analysis = JSON.parse(analysisResult.choices[0].message.content);
+              const content = analysisResult.choices[0].message.content.trim();
+              const jsonText = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+              const analysis = JSON.parse(jsonText);
+              
               sentiments.push(analysis.sentiment);
+              analyzedCount++;
+              console.log(`    ✅ Sentiment: ${analysis.sentiment}, Confidence: ${analysis.confidence}`);
               
               // Collect red flags
               if (analysis.redFlags && analysis.redFlags.length > 0 && analysis.redFlags[0] !== 'None') {
                 interview.redFlags = [...(interview.redFlags || []), ...analysis.redFlags];
+                console.log(`    ⚠️ Red flags found: ${analysis.redFlags.length}`);
               }
             } catch (error) {
-              console.error('Error analyzing response:', error);
+              console.error(`    ❌ Error analyzing response ${qIndex}:`, error.message);
               sentiments.push(0.7); // Default sentiment
             }
           }
         }
+        
+        console.log(`✅ Analyzed ${analyzedCount} responses successfully`);
       } catch (error) {
-        console.error('Error in batch analysis:', error);
+        console.error('❌ Error in batch analysis:', error.message);
       }
     }
     
     // Calculate average sentiment
     if (sentiments.length > 0) {
       interview.sentimentScore = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
+      console.log(`📊 Average sentiment score: ${interview.sentimentScore.toFixed(2)}`);
     } else {
-      // Fallback: simple calculation if no OpenAI analysis
       interview.sentimentScore = 0.7;
+      console.log('⚠️ No sentiments calculated, using default: 0.7');
     }
+
+    // Determine confidence level based on sentiment
+    if (interview.sentimentScore >= 0.8) {
+      interview.confidence = 'High';
+    } else if (interview.sentimentScore >= 0.5) {
+      interview.confidence = 'Medium';
+    } else {
+      interview.confidence = 'Low';
+    }
+    console.log(`🎯 Confidence level: ${interview.confidence}`);
 
     // Generate AI summary based on full transcript
     const transcriptText = interview.transcript
@@ -353,8 +439,10 @@ Format as JSON:
 
     if (openai) {
       try {
+        console.log('📝 Generating AI summary...');
+        
         const completion = await openai.chat.completions.create({
-          model: 'gpt-4',
+          model: 'gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
@@ -363,11 +451,11 @@ Format as JSON:
             {
               role: 'user',
               content: `Based on this interview transcript, provide:
-1. A comprehensive summary of the candidate's performance, strengths, and areas of concern
-2. Specific recommendations for next steps (e.g., "Proceed to next round", "Not a good fit", "Consider for different role", etc.)
+1. A comprehensive summary of the candidate's performance, strengths, and areas of concern (2-3 sentences)
+2. Specific recommendations for next steps (1-2 sentences)
 
 Transcript:
-${transcriptText}
+${transcriptText.substring(0, 3000)}
 
 Format your response with two clear sections:
 SUMMARY: [your summary here]
@@ -375,7 +463,8 @@ SUMMARY: [your summary here]
 RECOMMENDATIONS: [your recommendations here]`,
             },
           ],
-          max_tokens: 800,
+          temperature: 0.5,
+          max_tokens: 500,
         });
 
         const summary = completion.choices[0].message.content;
@@ -384,20 +473,27 @@ RECOMMENDATIONS: [your recommendations here]`,
         
         interview.aiSummary = summaryMatch ? summaryMatch[1].trim() : summary.split('\n\n')[0] || summary;
         interview.recommendations = recommendationsMatch ? recommendationsMatch[1].trim() : summary.split('\n\n')[1] || 'Consider for next round.';
+        
+        console.log('✅ AI summary generated');
+        console.log(`📄 Summary: ${interview.aiSummary.substring(0, 100)}...`);
       } catch (error) {
-        console.error('OpenAI summary error:', error);
+        console.error('❌ OpenAI summary error:', error.message);
         interview.aiSummary = 'Interview completed successfully. Review the transcript for detailed responses.';
         interview.recommendations = 'Consider for next round.';
       }
     } else {
-      // Fallback summary if OpenAI is not configured
+      console.log('⚠️ OpenAI not configured, using fallback summary');
       interview.aiSummary = 'Interview completed successfully. Review the transcript for detailed responses.';
       interview.recommendations = 'Consider for next round.';
     }
 
     await interview.save();
+    console.log('✅ Interview completed and saved');
+    console.log('='.repeat(50) + '\n');
+    
     res.json(interview);
   } catch (error) {
+    console.error('❌ Complete interview error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

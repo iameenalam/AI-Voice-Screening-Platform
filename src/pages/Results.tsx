@@ -31,10 +31,18 @@ const Results = () => {
     setLoading(false);
     
     if (result.error) {
-      toast.error(result.error);
+      toast.error(typeof result.error === 'string' ? result.error : result.error.error);
       navigate("/dashboard");
     } else if (result.data) {
-      setInterview(result.data);
+      // Store the complete interview data including dynamic fields
+      setInterview({
+        ...result.data,
+        sentimentScore: result.data.sentimentScore || 0,
+        confidence: result.data.confidence || 'Medium',
+        redFlags: result.data.redFlags || [],
+        aiSummary: result.data.aiSummary || 'Interview completed successfully. Review the transcript for details.',
+        recommendations: result.data.recommendations || 'Review the interview transcript and analysis to make your decision.',
+      });
     }
   };
 

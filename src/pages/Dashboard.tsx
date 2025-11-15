@@ -32,7 +32,6 @@ const Dashboard = () => {
     const result = await api.getDashboardStats();
     setLoading(false);
 
-    // ✅ FIXED: Safely handle non-string error types
     if (result.error) {
       const errorMessage =
         typeof result.error === "string"
@@ -40,7 +39,13 @@ const Dashboard = () => {
           : (result.error as any)?.error || "Something went wrong";
       toast.error(errorMessage);
     } else if (result.data) {
-      setStats(result.data.stats);
+      // Ensure stats are properly set with defaults
+      setStats({
+        totalInterviews: result.data.stats?.totalInterviews || 0,
+        completed: result.data.stats?.completed || 0,
+        inProgress: result.data.stats?.inProgress || 0,
+        avgSentiment: result.data.stats?.avgSentiment || 0,
+      });
       setRecentInterviews(result.data.recentInterviews || []);
     }
   };
