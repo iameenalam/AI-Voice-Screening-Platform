@@ -7,18 +7,14 @@ import mammoth from 'mammoth';
 import fs from 'fs/promises';
 import Tesseract from 'tesseract.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Use /tmp for Vercel serverless functions, 'uploads/' for local development
-const uploadDir = process.env.VERCEL ? '/tmp' : 'uploads/';
+const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp' : 'uploads/';
 const upload = multer({ dest: uploadDir });
 
 // Extract text from image using OCR
