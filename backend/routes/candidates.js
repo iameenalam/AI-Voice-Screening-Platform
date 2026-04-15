@@ -3,6 +3,7 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth.js';
 import Candidate from '../models/Candidate.js';
 import Interviewee from '../models/Interviewee.js';
+import Interview from '../models/Interview.js';
 import User from '../models/User.js';
 import { PdfReader } from 'pdfreader';
 import mammoth from 'mammoth';
@@ -11,6 +12,8 @@ import Tesseract from 'tesseract.js';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import crypto from 'crypto';
+import { sendInterviewInvitation } from '../utils/email.js';
 
 const execAsync = promisify(exec);
 
@@ -601,13 +604,20 @@ router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) =>
   }
 });
 
-// Create interviewee (Recruiter manual upload path)
+// Create candidate manually (Recruiter upload path)
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, role, fullRole, email, cvUrl, extractedData } = req.body;
+    
+    // Fetch recruiter to get company
+    const recruiter = await User.findById(req.userId);
+    const company = recruiter?.company || 'Unknown';
 
-    const interviewee = new Interviewee({
+    const candidate = new Candidate({
       recruiterId: req.userId,
+      isExternal: true, // Mark as recruiter-uploaded (external badge)
+      appliedCompany: company,
+      jobField: role, // Default jobField to the extracted role
       name,
       role,
       fullRole: fullRole || role,
@@ -616,10 +626,10 @@ router.post('/', authenticate, async (req, res) => {
       extractedData,
     });
 
-    await interviewee.save();
-    res.status(201).json(interviewee);
+    await candidate.save();
+    res.status(201).json(candidate);
   } catch (error) {
-    console.error('❌ Create interviewee error:', error.message);
+    console.error('❌ Create manual candidate error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -745,6 +755,253 @@ router.get('/:id', authenticate, async (req, res) => {
 
     res.json(result);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send interview invitation to a candidate
+router.post('/send-interview-invite', authenticate, async (req, res) => {
+  try {
+    const { candidateId, questions } = req.body;
+
+    if (!candidateId || !questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: 'Candidate ID and questions array are required' });
+    }
+
+    // Find the candidate
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (!candidate.email) {
+      return res.status(400).json({ error: 'Candidate has no email address' });
+    }
+
+    // Generate unique interview token
+    const interviewToken = crypto.randomBytes(32).toString('hex');
+
+    // Set expiry to 7 days from now
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Create interview record
+    const interview = new Interview({
+      candidateId: candidate._id,
+      candidateModel: 'Candidate',
+      recruiterId: req.userId,
+      questions,
+      status: 'pending',
+      interviewToken,
+      expiresAt,
+    });
+    await interview.save();
+
+    // Update candidate status
+    candidate.status = 'invited';
+    candidate.interviewToken = interviewToken;
+    candidate.interviewId = interview._id;
+    await candidate.save();
+
+    // Construct the interview link
+    const frontendUrl = process.env.FRONTEND_URL 
+      ? process.env.FRONTEND_URL.split(',')[0].trim()
+      : 'http://localhost:8080';
+    const interviewLink = `${frontendUrl}/interview/${interviewToken}`;
+
+    // Get recruiter's company name
+    const recruiter = await User.findById(req.userId);
+    const companyName = recruiter?.company || '';
+
+    // Send email
+    try {
+      await sendInterviewInvitation({
+        to: candidate.email,
+        candidateName: candidate.name,
+        interviewLink,
+        companyName,
+        jobField: candidate.jobField || candidate.role || '',
+        expiresAt,
+      });
+
+      console.log(`✅ Interview invitation sent to ${candidate.email}`);
+      res.json({
+        success: true,
+        message: `Interview invitation sent to ${candidate.email}`,
+        interviewId: interview._id,
+        interviewToken,
+        interviewLink,
+        expiresAt,
+      });
+    } catch (emailError) {
+      // Interview was created but email failed — still return success with warning
+      console.error('❌ Email sending failed:', emailError.message);
+      res.json({
+        success: true,
+        warning: `Interview created but email failed: ${emailError.message}`,
+        interviewId: interview._id,
+        interviewToken,
+        interviewLink,
+        expiresAt,
+        emailFailed: true,
+      });
+    }
+  } catch (error) {
+    console.error('❌ Send interview invite error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resend interview email (for when email initially failed)
+router.post('/resend-interview-email', authenticate, async (req, res) => {
+  try {
+    const { candidateId } = req.body;
+
+    if (!candidateId) {
+      return res.status(400).json({ error: 'Candidate ID is required' });
+    }
+
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (!candidate.interviewToken || !candidate.interviewId) {
+      return res.status(400).json({ error: 'No interview invite exists for this candidate. Send an invite first.' });
+    }
+
+    const interview = await Interview.findById(candidate.interviewId);
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview record not found' });
+    }
+
+    if (interview.status === 'completed') {
+      return res.status(400).json({ error: 'Interview has already been completed' });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',')[0].trim()
+      : 'http://localhost:8080';
+    const interviewLink = `${frontendUrl}/interview/${candidate.interviewToken}`;
+
+    const recruiter = await User.findById(req.userId);
+    const companyName = recruiter?.company || '';
+
+    try {
+      await sendInterviewInvitation({
+        to: candidate.email,
+        candidateName: candidate.name,
+        interviewLink,
+        companyName,
+        jobField: candidate.jobField || candidate.role || '',
+        expiresAt: interview.expiresAt,
+      });
+
+      console.log(`✅ Interview invitation re-sent to ${candidate.email}`);
+      res.json({
+        success: true,
+        message: `Interview invitation re-sent to ${candidate.email}`,
+        interviewLink,
+      });
+    } catch (emailError) {
+      console.error('❌ Resend email failed:', emailError.message);
+      res.status(500).json({
+        error: `Failed to send email: ${emailError.message}`,
+        interviewLink,
+      });
+    }
+  } catch (error) {
+    console.error('❌ Resend interview email error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Batch send interview invitations
+router.post('/batch-send-invites', authenticate, async (req, res) => {
+  try {
+    const { candidateIds, questions } = req.body;
+
+    if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds array is required' });
+    }
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: 'questions array is required' });
+    }
+
+    const recruiter = await User.findById(req.userId);
+    const companyName = recruiter?.company || '';
+    const frontendUrl = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',')[0].trim()
+      : 'http://localhost:8080';
+
+    const results = [];
+
+    for (const candidateId of candidateIds) {
+      try {
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+          results.push({ candidateId, success: false, error: 'Not found' });
+          continue;
+        }
+        if (!candidate.email) {
+          results.push({ candidateId, success: false, error: 'No email' });
+          continue;
+        }
+        if (candidate.status === 'invited' || candidate.status === 'interviewed') {
+          results.push({ candidateId, success: false, error: 'Already invited' });
+          continue;
+        }
+
+        const interviewToken = crypto.randomBytes(32).toString('hex');
+
+        // Set expiry to 7 days from now
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const interview = new Interview({
+          candidateId: candidate._id,
+          candidateModel: 'Candidate',
+          recruiterId: req.userId,
+          questions,
+          status: 'pending',
+          interviewToken,
+          expiresAt,
+        });
+        await interview.save();
+
+        candidate.status = 'invited';
+        candidate.interviewToken = interviewToken;
+        candidate.interviewId = interview._id;
+        await candidate.save();
+
+        const interviewLink = `${frontendUrl}/interview/${interviewToken}`;
+
+        try {
+          await sendInterviewInvitation({
+            to: candidate.email,
+            candidateName: candidate.name,
+            interviewLink,
+            companyName,
+            jobField: candidate.jobField || candidate.role || '',
+            expiresAt,
+          });
+          results.push({ candidateId, success: true, email: candidate.email });
+        } catch (emailErr) {
+          results.push({ candidateId, success: true, email: candidate.email, emailFailed: true, warning: emailErr.message });
+        }
+      } catch (err) {
+        results.push({ candidateId, success: false, error: err.message });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({
+      success: true,
+      message: `Sent ${successCount}/${candidateIds.length} invitations`,
+      results,
+    });
+  } catch (error) {
+    console.error('❌ Batch send invites error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

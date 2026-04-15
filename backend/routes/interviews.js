@@ -534,5 +534,252 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
+// ==========================================
+// PUBLIC INTERVIEW ROUTES (token-based, no auth)
+// ==========================================
+
+// Get interview by token (public)
+router.get('/public/:token', async (req, res) => {
+  try {
+    const interview = await Interview.findOne({
+      interviewToken: req.params.token,
+    }).populate('candidateId');
+
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview not found or link is invalid' });
+    }
+
+    // Check if link has expired
+    if (interview.expiresAt && new Date() > new Date(interview.expiresAt)) {
+      return res.status(410).json({ error: 'This interview link has expired. Please contact the recruiter for a new link.', expired: true });
+    }
+
+    // Check if already completed (one-time use)
+    if (interview.status === 'completed') {
+      return res.status(400).json({ error: 'This interview has already been completed. Each link can only be used once.', completed: true });
+    }
+
+    res.json(interview);
+  } catch (error) {
+    console.error('❌ Public get interview error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start interview by token (public)
+router.post('/public/:token/start', async (req, res) => {
+  try {
+    console.log('\n▶️  === STARTING PUBLIC INTERVIEW ===');
+    const interview = await Interview.findOne({
+      interviewToken: req.params.token,
+    });
+
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview not found' });
+    }
+
+    // Check expiry
+    if (interview.expiresAt && new Date() > new Date(interview.expiresAt)) {
+      return res.status(410).json({ error: 'This interview link has expired.', expired: true });
+    }
+
+    if (interview.status === 'completed') {
+      return res.status(400).json({ error: 'This interview has already been completed. Each link can only be used once.', completed: true });
+    }
+
+    interview.status = 'in_progress';
+    interview.startedAt = new Date();
+    await interview.save();
+
+    console.log(`✅ Public interview started at ${interview.startedAt.toISOString()}`);
+    res.json(interview);
+  } catch (error) {
+    console.error('❌ Public start interview error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add transcript entry by token (public)
+router.post('/public/:token/transcript', async (req, res) => {
+  try {
+    const { speaker, text, timestamp, questionIndex } = req.body;
+    const interview = await Interview.findOne({
+      interviewToken: req.params.token,
+    });
+
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview not found' });
+    }
+
+    interview.transcript.push({
+      speaker,
+      text,
+      timestamp: timestamp || Date.now(),
+      questionIndex: questionIndex !== undefined ? questionIndex : -1,
+    });
+
+    await interview.save();
+    res.json(interview);
+  } catch (error) {
+    console.error('❌ Public transcript error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Complete interview by token (public)
+router.post('/public/:token/complete', async (req, res) => {
+  try {
+    console.log('\n🏁 === COMPLETING PUBLIC INTERVIEW ===');
+    const interview = await Interview.findOne({
+      interviewToken: req.params.token,
+    }).populate('candidateId');
+
+    if (!interview) {
+      return res.status(404).json({ error: 'Interview not found' });
+    }
+
+    interview.status = 'completed';
+    interview.completedAt = new Date();
+
+    if (interview.startedAt) {
+      interview.duration = Math.floor(
+        (interview.completedAt - interview.startedAt) / 1000
+      );
+    }
+
+    const openai = getOpenAIClient();
+
+    // Analyze each candidate response using OpenAI
+    const sentiments = [];
+    const candidateResponses = interview.transcript.filter(t => t.speaker === 'Candidate');
+
+    if (openai && candidateResponses.length > 0) {
+      try {
+        const responsesByQuestion = {};
+        candidateResponses.forEach(entry => {
+          const qIndex = entry.questionIndex >= 0 ? entry.questionIndex : 0;
+          if (!responsesByQuestion[qIndex]) {
+            responsesByQuestion[qIndex] = [];
+          }
+          responsesByQuestion[qIndex].push(entry.text);
+        });
+
+        const questionsByIndex = {};
+        interview.transcript.filter(t => t.speaker === 'AI').forEach(entry => {
+          if (entry.questionIndex >= 0) {
+            questionsByIndex[entry.questionIndex] = entry.text;
+          }
+        });
+
+        for (const [qIndex, responses] of Object.entries(responsesByQuestion)) {
+          const question = questionsByIndex[qIndex] || 'General question';
+          const responseText = responses.join(' ');
+
+          if (responseText.trim()) {
+            try {
+              const analysisResult = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are an expert interviewer analyzing candidate responses. Return ONLY valid JSON with no markdown.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Analyze this interview response and return ONLY valid JSON:\n\nQuestion: ${question}\nResponse: ${responseText}\n\nReturn this exact structure:\n{\n  "sentiment": 0.75,\n  "confidence": "High",\n  "redFlags": [],\n  "summary": "Brief summary"\n}`,
+                  },
+                ],
+                temperature: 0.3,
+                max_tokens: 300,
+              });
+
+              const content = analysisResult.choices[0].message.content.trim();
+              const jsonText = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+              const analysis = JSON.parse(jsonText);
+              sentiments.push(analysis.sentiment);
+              if (analysis.redFlags && analysis.redFlags.length > 0 && analysis.redFlags[0] !== 'None') {
+                interview.redFlags = [...(interview.redFlags || []), ...analysis.redFlags];
+              }
+            } catch (error) {
+              sentiments.push(0.7);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error in batch analysis:', error.message);
+      }
+    }
+
+    // Calculate average sentiment
+    if (sentiments.length > 0) {
+      interview.sentimentScore = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
+    } else {
+      interview.sentimentScore = 0.7;
+    }
+
+    // Determine confidence level
+    if (interview.sentimentScore >= 0.8) {
+      interview.confidence = 'High';
+    } else if (interview.sentimentScore >= 0.5) {
+      interview.confidence = 'Medium';
+    } else {
+      interview.confidence = 'Low';
+    }
+
+    // Generate AI summary
+    const transcriptText = interview.transcript
+      .map(t => `${t.speaker}: ${t.text}`)
+      .join('\n');
+
+    if (openai) {
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert recruiter. Provide a concise summary and recommendations for this interview.',
+            },
+            {
+              role: 'user',
+              content: `Based on this interview transcript, provide:\n1. A comprehensive summary (2-3 sentences)\n2. Specific recommendations (1-2 sentences)\n\nTranscript:\n${transcriptText.substring(0, 3000)}\n\nFormat:\nSUMMARY: [your summary here]\n\nRECOMMENDATIONS: [your recommendations here]`,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 500,
+        });
+
+        const summary = completion.choices[0].message.content;
+        const summaryMatch = summary.match(/SUMMARY:\s*(.+?)(?=RECOMMENDATIONS:|$)/is);
+        const recommendationsMatch = summary.match(/RECOMMENDATIONS:\s*(.+?)$/is);
+
+        interview.aiSummary = summaryMatch ? summaryMatch[1].trim() : summary.split('\n\n')[0] || summary;
+        interview.recommendations = recommendationsMatch ? recommendationsMatch[1].trim() : 'Consider for next round.';
+      } catch (error) {
+        interview.aiSummary = 'Interview completed successfully. Review the transcript for detailed responses.';
+        interview.recommendations = 'Consider for next round.';
+      }
+    } else {
+      interview.aiSummary = 'Interview completed successfully. Review the transcript for detailed responses.';
+      interview.recommendations = 'Consider for next round.';
+    }
+
+    await interview.save();
+
+    // Update candidate status to 'interviewed'
+    try {
+      await Candidate.findByIdAndUpdate(interview.candidateId, { status: 'interviewed' });
+    } catch (err) {
+      console.warn('⚠️ Could not update candidate status:', err.message);
+    }
+
+    console.log('✅ Public interview completed and saved');
+    res.json(interview);
+  } catch (error) {
+    console.error('❌ Public complete interview error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

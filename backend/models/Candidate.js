@@ -42,6 +42,24 @@ const candidateSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {},
   },
+  status: {
+    type: String,
+    enum: ['applied', 'invited', 'interviewed'],
+    default: 'applied',
+  },
+  interviewToken: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  interviewId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Interview',
+  },
+  isExternal: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

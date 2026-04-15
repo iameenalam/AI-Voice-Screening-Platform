@@ -14,7 +14,15 @@ const interviewSchema = new mongoose.Schema({
   recruiterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,
+  },
+  interviewToken: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  expiresAt: {
+    type: Date,
   },
   questions: [{
     type: String,
@@ -79,6 +87,9 @@ const interviewSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// Index for fast token lookups
+interviewSchema.index({ interviewToken: 1 });
 
 export default mongoose.model('Interview', interviewSchema);
 

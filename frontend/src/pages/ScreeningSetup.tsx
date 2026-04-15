@@ -72,14 +72,21 @@ const ScreeningSetup = () => {
     }
 
     setLoading(true);
-    const result = await api.createInterview(candidateId, questions);
+    // Use the new email invitation endpoint instead of just creating an interview
+    const result = await api.sendInterviewInvite(candidateId, questions);
     setLoading(false);
 
     if (result.error) {
-      toast.error(result.error);
+      const errMsg = typeof result.error === 'string' ? result.error : (result.error as any)?.error || "Failed to send invitation";
+      toast.error(errMsg);
     } else if (result.data) {
-      localStorage.setItem('currentInterviewId', result.data._id);
-      navigate("/mic-test", { state: { interviewId: result.data._id } });
+      if (result.data.emailFailed) {
+        toast.warning(`Interview created but email failed. Link: ${result.data.interviewLink}`);
+      } else {
+        toast.success(result.data.message || "Interview invitation sent successfully!");
+      }
+      // Flow ends here. Recruiter goes back to applications dashboard.
+      navigate("/applications");
     }
   };
 
@@ -177,7 +184,7 @@ const ScreeningSetup = () => {
               size="lg"
               disabled={loading || questions.length === 0}
             >
-              {loading ? "Creating Interview..." : "Continue to Mic Test"}
+              {loading ? "Sending Invitation..." : "Send Interview Invitation"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
