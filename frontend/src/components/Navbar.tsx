@@ -105,75 +105,103 @@ export const Navbar = ({
 
           {/* Right Side Buttons */}
           <div className="flex items-center gap-3">
-            {showActions && (
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={onActionClick || (() => navigate("/upload-cv"))}
-                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all px-2 py-1 md:px-3 md:py-1.5"
-                  size="sm"
-                >
-                  <Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                  <span className="text-xs md:text-sm">
-                    <span className="hidden sm:inline">{actionLabel}</span>
-                    <span className="sm:hidden">Interview</span>
-                  </span>
-                </Button>
-                {user && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLogout}
-                    className="text-muted-foreground hover:text-foreground px-2 py-1 md:px-3 md:py-1.5"
-                  >
-                    <LogOut className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
-                    <span className="hidden md:inline">Logout</span>
-                  </Button>
+            {user && (
+              <div className="hidden md:flex items-center gap-2">
+                {/* On Dashboard: show Applications + New Interview */}
+                {location.pathname === "/dashboard" && (
+                  <>
+                    <Button
+                      onClick={() => navigate("/applications")}
+                      className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                      size="sm"
+                    >
+                      Applications
+                    </Button>
+                    <Button
+                      onClick={() => navigate("/upload-cv")}
+                      className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                      size="sm"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Interview
+                    </Button>
+                  </>
                 )}
-              </div>
-            )}
 
-            {!showActions && (
-              <>
-                {user ? (
-                  <div className="hidden md:flex items-center gap-2">
+                {/* On Applications: show Dashboard + New Interview */}
+                {location.pathname === "/applications" && (
+                  <>
                     <Button
                       onClick={() => navigate("/dashboard")}
                       className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
                       size="sm"
                     >
                       Dashboard
-                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="hidden md:flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate("/login")}
-                      size="sm"
-                    >
-                      Login
-                    </Button>
-                    <Button
-                      onClick={() => navigate("/signup")}
+                      onClick={() => navigate("/upload-cv")}
                       className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
                       size="sm"
                     >
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Interview
                     </Button>
-                  </div>
+                  </>
                 )}
-              </>
+
+                {/* On other secondary logged-in pages (Setup, Results, etc.): show action button if provided */}
+                {location.pathname !== "/dashboard" && location.pathname !== "/applications" && location.pathname !== "/" && (
+                  <Button
+                    onClick={onActionClick || (() => navigate("/upload-cv"))}
+                    className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                    size="sm"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {actionLabel}
+                  </Button>
+                )}
+
+                {/* On Landing Page: show Dashboard */}
+                {location.pathname === "/" && (
+                  <Button
+                    onClick={() => navigate("/dashboard")}
+                    className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                    size="sm"
+                  >
+                    Dashboard
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            )}
+
+            {!user && (
+              <div className="hidden md:flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/login")}
+                  size="sm"
+                >
+                  Login
+                </Button>
+                <Button
+                  onClick={() => navigate("/signup")}
+                  className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
+                  size="sm"
+                >
+                  Get Started
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             )}
 
             {/* Hamburger Menu - Only show on landing page */}
@@ -225,16 +253,42 @@ export const Navbar = ({
               {/* Mobile User Buttons */}
               {user ? (
                 <>
+                  {location.pathname === "/dashboard" ? (
+                    <Button
+                      onClick={() => {
+                        navigate("/applications");
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg transition-all mt-2"
+                      size="sm"
+                    >
+                      Applications
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        navigate("/dashboard");
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg transition-all mt-2"
+                      size="sm"
+                    >
+                      Dashboard
+                    </Button>
+                  )}
+                  
                   <Button
                     onClick={() => {
-                      navigate("/dashboard");
+                      navigate("/upload-cv");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg transition-all mt-2"
+                    className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg transition-all mt-1"
                     size="sm"
                   >
-                    Dashboard
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Interview
                   </Button>
+
                   <Button
                     variant="ghost"
                     onClick={handleLogout}

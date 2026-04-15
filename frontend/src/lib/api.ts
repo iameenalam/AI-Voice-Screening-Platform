@@ -99,6 +99,11 @@ class ApiClient {
     return !!this.getToken();
   }
 
+  // Companies
+  async getCompanies() {
+    return this.request<string[]>('/auth/companies');
+  }
+
   // Candidates
   async uploadCV(file: File) {
     const formData = new FormData();
@@ -128,6 +133,8 @@ class ApiClient {
     fullRole?: string;
     cvUrl?: string;
     extractedData?: any;
+    appliedCompany?: string;
+    jobField?: string;
   }) {
     return this.request('/candidates', {
       method: 'POST',
@@ -141,6 +148,35 @@ class ApiClient {
 
   async getCandidate(id: string) {
     return this.request<any>(`/candidates/${id}`);
+  }
+
+  async publicParseCV(file: File) {
+    const formData = new FormData();
+    formData.append('cv', file);
+
+    const response = await fetch(`${API_BASE_URL}/candidates/public-parse-cv`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { error: data.error || 'Parsing failed', details: data.details };
+    }
+    return { data };
+  }
+
+  async publicApply(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/candidates/public-apply`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { error: data.error || 'Application failed' };
+    }
+    return { data };
   }
 
   // Interviews

@@ -3,8 +3,13 @@ import mongoose from 'mongoose';
 const interviewSchema = new mongoose.Schema({
   candidateId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Candidate',
     required: true,
+    refPath: 'candidateModel',
+  },
+  candidateModel: {
+    type: String,
+    required: true,
+    enum: ['Candidate', 'Interviewee'],
   },
   recruiterId: {
     type: mongoose.Schema.Types.ObjectId,

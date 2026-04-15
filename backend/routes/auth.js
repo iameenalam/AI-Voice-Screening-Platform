@@ -114,5 +114,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Get unique companies
+router.get('/companies', async (req, res) => {
+  try {
+    // Use aggregation to find distinct companies that are not empty and not null
+    const companies = await User.distinct('company', { company: { $nin: ['', null] } });
+    const filteredCompanies = companies.filter(c => c && c.trim() !== '');
+    res.json(filteredCompanies);
+  } catch (error) {
+    console.error('Get companies error:', error);
+    if (error.message && error.message.includes('Database not connected')) {
+      return res.status(503).json({ 
+        error: 'Database service unavailable. Please check your MongoDB connection.',
+        details: 'Make sure MongoDB is running or configure MongoDB Atlas in your .env file'
+      });
+    }
+    res.status(500).json({ error: error.message || 'Failed to fetch companies' });
+  }
+});
+
 export default router;
 

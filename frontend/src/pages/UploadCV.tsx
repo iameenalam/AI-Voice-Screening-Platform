@@ -16,9 +16,10 @@ const UploadCV = () => {
   const [candidateData, setCandidateData] = useState({
     name: "",
     role: "",
-    phone: "",
     email: "",
   });
+  const [cvUrl, setCvUrl] = useState<string | null>(null);
+  const [extractedData, setRawExtractedData] = useState<any>(null);
   const [fullRole, setFullRole] = useState("");
   const [showFullRole, setShowFullRole] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
@@ -36,20 +37,24 @@ const UploadCV = () => {
       }
 
       if (result.data) {
-        // API returns { data: { success: true, data: extractedData } }
-        const extractedData = result.data.data || result.data;
-        const hasData = extractedData.name || extractedData.email || extractedData.phone;
+        // API returns { success: true, data: extractedData, cvUrl: string }
+        const res = result.data as any;
+        const data = res.data || {};
+        const hasData = data.name || data.email;
         
         setCandidateData({
-          name: extractedData.name || "",
-          role: extractedData.role || "",
-          phone: extractedData.phone || "",
-          email: extractedData.email || "",
+          name: data.name || "",
+          role: data.role || "",
+          email: data.email || "",
         });
         
+        // Capture cvUrl and raw extracted data
+        if (res.cvUrl) setCvUrl(res.cvUrl);
+        setRawExtractedData(data);
+        
         // Store full role if available
-        if (extractedData.fullRole && extractedData.fullRole !== extractedData.role) {
-          setFullRole(extractedData.fullRole);
+        if (data.fullRole && data.fullRole !== data.role) {
+          setFullRole(data.fullRole);
         }
         
         setExtracted(true);
@@ -73,26 +78,32 @@ const UploadCV = () => {
       return;
     }
 
-    // Include full role in the submission
+    // Include full role, cvUrl, and extractedData in the submission
     const candidatePayload = {
       ...candidateData,
-      fullRole: fullRole || candidateData.role, // Use fullRole if available, otherwise use role
+      fullRole: fullRole || candidateData.role,
+      cvUrl: cvUrl || "",
+      extractedData: extractedData || {},
     };
 
     const result = await api.createCandidate(candidatePayload);
     
     if (result.error) {
-      toast.error(result.error);
+      const errorMsg = typeof result.error === 'string' 
+        ? result.error 
+        : (result.error as any).error || "Failed to create candidate";
+      toast.error(errorMsg);
       return;
     }
 
     if (result.data) {
-      setCandidateId(result.data._id);
-      localStorage.setItem('currentCandidateId', result.data._id);
+      const data = result.data as any;
+      setCandidateId(data._id);
+      localStorage.setItem('currentCandidateId', data._id);
       // Pass full role for AI question generation
       navigate("/screening-setup", { 
         state: { 
-          candidateId: result.data._id, 
+          candidateId: data._id, 
           role: fullRole || candidateData.role // Use full role for context
         } 
       });
@@ -217,18 +228,6 @@ const UploadCV = () => {
                         className="bg-input"
                       />
                     )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={candidateData.phone}
-                      onChange={(e) =>
-                        setCandidateData({ ...candidateData, phone: e.target.value })
-                      }
-                      className="bg-input"
-                    />
                   </div>
 
                   <div className="space-y-2">

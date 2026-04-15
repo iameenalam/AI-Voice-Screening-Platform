@@ -1,17 +1,9 @@
 import mongoose from 'mongoose';
 
-const candidateSchema = new mongoose.Schema({
+const intervieweeSchema = new mongoose.Schema({
   recruiterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false,
-  },
-  appliedCompany: {
-    type: String,
-    required: true,
-  },
-  jobField: {
-    type: String,
     required: true,
   },
   name: {
@@ -30,10 +22,6 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  phone: {
-    type: String,
-    default: '',
-  },
   cvUrl: {
     type: String,
     default: '',
@@ -48,5 +36,4 @@ const candidateSchema = new mongoose.Schema({
   },
 });
 
-export default mongoose.model('Candidate', candidateSchema);
-
+export default mongoose.model('Interviewee', intervieweeSchema);

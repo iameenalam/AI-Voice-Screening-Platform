@@ -52,7 +52,7 @@ const Signup = () => {
       const errorDetails = errorObj?.details;
       
       toast.error(errorMsg, {
-        description: errorDetails || 'Please check your MongoDB connection',
+        description: errorDetails || 'Check your network connection or try again later',
         duration: 5000,
       });
     } else {

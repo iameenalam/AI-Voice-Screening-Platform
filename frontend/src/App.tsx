@@ -16,6 +16,8 @@ import Results from "./pages/Results";
 import Download from "./pages/Download";
 import Dashboard from "./pages/Dashboard";
 import Transcript from "./pages/Transcript";
+import Apply from "./pages/Apply";
+import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,10 +34,12 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/apply" element={<Apply />} />
           
           {/* Protected routes - require authentication */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/applications" element={<Applications />} />
             <Route path="/upload-cv" element={<UploadCV />} />
             <Route path="/screening-setup" element={<ScreeningSetup />} />
             <Route path="/mic-test" element={<MicTest />} />

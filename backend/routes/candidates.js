@@ -2,6 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import { authenticate } from '../middleware/auth.js';
 import Candidate from '../models/Candidate.js';
+import Interviewee from '../models/Interviewee.js';
+import User from '../models/User.js';
 import { PdfReader } from 'pdfreader';
 import mammoth from 'mammoth';
 import fs from 'fs/promises';
@@ -557,23 +559,23 @@ router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) =>
       // Check if we got meaningful data
       const hasData = extractedData.name || extractedData.email || extractedData.phone;
       
-      // Clean up uploaded file
-      await fs.unlink(filePath);
+      // Move to permanent storage
+      const ext = req.file.originalname.split('.').pop() || 'pdf';
+      const uniqueFileName = `cv_${Date.now()}_${Math.round(Math.random() * 1E9)}.${ext}`;
+      const targetDir = path.join(process.cwd(), 'uploads', 'cvs');
+      
+      await fs.mkdir(targetDir, { recursive: true });
+      const targetPath = path.join(targetDir, uniqueFileName);
+      await fs.rename(filePath, targetPath);
+      const cvUrl = `/uploads/cvs/${uniqueFileName}`;
 
-      if (!hasData) {
-        console.warn('⚠️ No data extracted from CV - may be image-based or poorly formatted');
-        console.log('❌ CV processing failed - no data extracted\n');
-        return res.status(400).json({ 
-          error: 'Could not extract data automatically. Please enter details manually.',
-          details: 'The PDF may be image-based, scanned, or have unusual formatting. OCR support requires Poppler installation.'
-        });
-      }
-
+      console.log(`✅ CV saved to: ${cvUrl}`);
       console.log('✅ CV processing complete\n');
 
       res.json({
         success: true,
         data: extractedData,
+        cvUrl: cvUrl
       });
     } catch (error) {
       // Clean up on error
@@ -599,53 +601,149 @@ router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) =>
   }
 });
 
-// Create candidate
+// Create interviewee (Recruiter manual upload path)
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, role, fullRole, email, phone, cvUrl, extractedData } = req.body;
+    const { name, role, fullRole, email, cvUrl, extractedData } = req.body;
 
-    const candidate = new Candidate({
+    const interviewee = new Interviewee({
       recruiterId: req.userId,
       name,
       role,
-      fullRole: fullRole || role, // Store full role, fallback to role if not provided
+      fullRole: fullRole || role,
       email,
-      phone,
       cvUrl,
       extractedData,
     });
 
-    await candidate.save();
-    res.status(201).json(candidate);
+    await interviewee.save();
+    res.status(201).json(interviewee);
   } catch (error) {
+    console.error('❌ Create interviewee error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get all candidates for recruiter
+// Public CV Parse (No authentication required, no permanent saving)
+router.post('/public-parse-cv', upload.single('cv'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    let text = '';
+    const filePath = req.file.path;
+    const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+
+    try {
+      if (fileExtension === 'pdf') {
+        text = await extractTextFromPDF(filePath);
+      } else if (['doc', 'docx'].includes(fileExtension)) {
+        text = await extractTextFromDOCX(filePath);
+      } else {
+        await fs.unlink(filePath);
+        return res.status(400).json({ error: 'Unsupported file format.' });
+      }
+
+      const extractedData = await parseCVText(text);
+      await fs.unlink(filePath); // Clean up temp file
+
+      const hasData = extractedData.name || extractedData.email || extractedData.phone;
+      if (!hasData) {
+        return res.status(400).json({ 
+          error: 'Could not extract data. Please fill details manually.' 
+        });
+      }
+
+      res.json({ success: true, data: extractedData });
+    } catch (error) {
+      try { await fs.unlink(filePath); } catch {}
+      res.status(500).json({ error: 'Parsing failed', details: error.message });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Upload failed', details: error.message });
+  }
+});
+
+// Public Apply (Saves candidate + file permanently)
+router.post('/public-apply', upload.single('cv'), async (req, res) => {
+  try {
+    const { name, email, phone, appliedCompany, jobField, extractedData } = req.body;
+    let cvUrl = '';
+
+    if (!name || !email || !appliedCompany || !jobField) {
+      if (req.file) { try { await fs.unlink(req.file.path); } catch {} }
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (req.file) {
+      const ext = req.file.originalname.split('.').pop();
+      const uniqueFileName = `cv_${Date.now()}_${Math.round(Math.random() * 1E9)}.${ext}`;
+      const targetDir = path.join(process.cwd(), 'uploads', 'cvs');
+      
+      await fs.mkdir(targetDir, { recursive: true });
+      const targetPath = path.join(targetDir, uniqueFileName);
+      await fs.rename(req.file.path, targetPath);
+      
+      cvUrl = `/uploads/cvs/${uniqueFileName}`;
+    }
+
+    const candidate = new Candidate({
+      name,
+      email,
+      phone,
+      appliedCompany,
+      jobField,
+      role: jobField,
+      fullRole: jobField,
+      cvUrl,
+      extractedData: extractedData ? JSON.parse(extractedData) : {},
+    });
+
+    await candidate.save();
+    res.status(201).json({ success: true, candidate });
+  } catch (error) {
+    if (req.file) { try { await fs.unlink(req.file.path); } catch {} }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all candidates for recruiter (Only public applicants)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const candidates = await Candidate.find({ recruiterId: req.userId })
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const query = {
+      $or: [
+        { appliedCompany: user.company },
+        { appliedCompany: 'All' }
+      ]
+    };
+
+    const candidates = await Candidate.find(query)
       .sort({ createdAt: -1 });
     res.json(candidates);
   } catch (error) {
+    console.error('❌ Get candidates error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get single candidate
+// Get single candidate/interviewee
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    const candidate = await Candidate.findOne({
-      _id: req.params.id,
-      recruiterId: req.userId,
-    });
+    // Try both collections
+    const [candidate, interviewee] = await Promise.all([
+      Candidate.findOne({ _id: req.params.id }),
+      Interviewee.findOne({ _id: req.params.id, recruiterId: req.userId })
+    ]);
 
-    if (!candidate) {
+    const result = candidate || interviewee;
+
+    if (!result) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    res.json(candidate);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

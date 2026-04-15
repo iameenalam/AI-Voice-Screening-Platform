@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import Interview from '../models/Interview.js';
 import Candidate from '../models/Candidate.js';
+import Interviewee from '../models/Interviewee.js';
 import OpenAI from 'openai';
 
 const router = express.Router();
@@ -102,20 +103,25 @@ router.post('/', authenticate, async (req, res) => {
     console.log(`👤 Candidate ID: ${candidateId}`);
     console.log(`❓ Questions: ${questions.length}`);
 
-    const candidate = await Candidate.findOne({
-      _id: candidateId,
-      recruiterId: req.userId,
-    });
+    // Try both collections to find the candidate
+    const [candidate, interviewee] = await Promise.all([
+      Candidate.findOne({ _id: candidateId }),
+      Interviewee.findOne({ _id: candidateId, recruiterId: req.userId })
+    ]);
 
-    if (!candidate) {
-      console.log('❌ Candidate not found');
+    const targetPerson = candidate || interviewee;
+
+    if (!targetPerson) {
+      console.log('❌ Candidate/Interviewee not found');
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    console.log(`✅ Candidate found: ${candidate.name}`);
+    const modelName = candidate ? 'Candidate' : 'Interviewee';
+    console.log(`✅ ${modelName} found: ${targetPerson.name}`);
 
     const interview = new Interview({
       candidateId,
+      candidateModel: modelName,
       recruiterId: req.userId,
       questions,
       status: 'pending',

@@ -6,6 +6,11 @@ import authRoutes from './routes/auth.js';
 import candidateRoutes from './routes/candidates.js';
 import interviewRoutes from './routes/interviews.js';
 import dashboardRoutes from './routes/dashboard.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -13,15 +18,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const corsOptions = {
-  origin: process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',')
-    : true,
+  origin: (origin, callback) => {
+    const allowedOrigins = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+      : ['http://localhost:8080', 'http://localhost:5173', 'http://127.0.0.1:8080'];
+    
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded CVs publicly
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/vocalent';
 
