@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Mic, Phone, Loader2, ArrowRight, Volume2, VolumeX, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 const PublicInterview = () => {
   const navigate = useNavigate();
   const { token } = useParams<{ token: string }>();
+  const location = useLocation();
   
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -96,12 +97,21 @@ const PublicInterview = () => {
       if (result.data.status === 'in_progress') {
         setInterviewStarted(true);
         startVoiceRecognition();
+      } else if (location.state?.startImmediately) {
+        // Auto-start if coming back from MicTest
+        startInterview();
       }
     }
   };
 
   const startInterview = async () => {
     if (!token) return;
+
+    // If not already starting from mic test, go to mic test first
+    if (!location.state?.startImmediately) {
+      navigate("/mic-test", { state: { token, interviewId: token } });
+      return;
+    }
     
     setLoading(true);
     const result = await api.startPublicInterview(token);

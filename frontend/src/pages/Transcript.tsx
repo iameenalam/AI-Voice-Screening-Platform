@@ -31,7 +31,8 @@ const Transcript = () => {
     setLoading(false);
     
     if (result.error) {
-      toast.error(result.error);
+      const errMsg = typeof result.error === 'string' ? result.error : (result.error as any)?.error || 'Failed to load transcript';
+      toast.error(errMsg);
       navigate("/dashboard");
     } else if (result.data) {
       setInterview(result.data);

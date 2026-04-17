@@ -107,15 +107,15 @@ export const Navbar = ({
           <div className="flex items-center gap-3">
             {user && (
               <div className="hidden md:flex items-center gap-2">
-                {/* On Dashboard: show Applications + New Interview */}
+                {/* On Dashboard: show Candidate Pool + New Interview */}
                 {location.pathname === "/dashboard" && (
                   <>
                     <Button
-                      onClick={() => navigate("/applications")}
+                      onClick={() => navigate("/candidate-pool")}
                       className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
                       size="sm"
                     >
-                      Applications
+                      Candidate Pool
                     </Button>
                     <Button
                       onClick={() => navigate("/upload-cv")}
@@ -128,8 +128,8 @@ export const Navbar = ({
                   </>
                 )}
 
-                {/* On Applications: show Dashboard + New Interview */}
-                {location.pathname === "/applications" && (
+                {/* On Candidate Pool: show Dashboard + New Interview */}
+                {location.pathname === "/candidate-pool" && (
                   <>
                     <Button
                       onClick={() => navigate("/dashboard")}
@@ -150,7 +150,7 @@ export const Navbar = ({
                 )}
 
                 {/* On other secondary logged-in pages (Setup, Results, etc.): show action button if provided */}
-                {location.pathname !== "/dashboard" && location.pathname !== "/applications" && location.pathname !== "/" && (
+                {location.pathname !== "/dashboard" && location.pathname !== "/candidate-pool" && location.pathname !== "/" && (
                   <Button
                     onClick={onActionClick || (() => navigate("/upload-cv"))}
                     className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
@@ -256,13 +256,13 @@ export const Navbar = ({
                   {location.pathname === "/dashboard" ? (
                     <Button
                       onClick={() => {
-                        navigate("/applications");
+                        navigate("/candidate-pool");
                         setMobileMenuOpen(false);
                       }}
                       className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg transition-all mt-2"
                       size="sm"
                     >
-                      Applications
+                      Candidate Pool
                     </Button>
                   ) : (
                     <Button

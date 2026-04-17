@@ -86,7 +86,7 @@ const ScreeningSetup = () => {
         toast.success(result.data.message || "Interview invitation sent successfully!");
       }
       // Flow ends here. Recruiter goes back to applications dashboard.
-      navigate("/applications");
+      navigate("/candidate-pool");
     }
   };
 

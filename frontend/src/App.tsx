@@ -41,7 +41,7 @@ const App = () => (
           {/* Protected routes - require authentication */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/applications" element={<Applications />} />
+            <Route path="/candidate-pool" element={<Applications />} />
             <Route path="/upload-cv" element={<UploadCV />} />
             <Route path="/screening-setup" element={<ScreeningSetup />} />
             <Route path="/mic-test" element={<MicTest />} />

@@ -241,7 +241,7 @@ const Applications = () => {
       <div className="container mx-auto px-4 py-8 md:py-12 flex-1 relative z-10">
         <div className="mb-6 md:mb-8 animate-fade-in">
           <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-            Applications
+            Candidate Pool
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">
             Review, manage, and send interview invitations to candidates
@@ -502,7 +502,7 @@ const Applications = () => {
       {/* Interview Invite Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/50 shadow-2xl p-6 animate-fade-in">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/50 shadow-2xl p-6 animate-fade-in custom-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold">
@@ -515,9 +515,6 @@ const Applications = () => {
                   Configure interview questions before sending the invitation
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowInviteModal(false)}>
-                <X className="h-5 w-5" />
-              </Button>
             </div>
 
             {/* AI Generate */}
@@ -540,7 +537,7 @@ const Applications = () => {
             )}
 
             {/* Questions List */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               <Label className="text-sm font-medium">Interview Questions</Label>
               {inviteQuestions.map((q, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 bg-accent/50 rounded-lg group">

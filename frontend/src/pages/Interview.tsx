@@ -68,19 +68,29 @@ const Interview = () => {
       if (result.data.status === 'in_progress') {
         setInterviewStarted(true);
         startVoiceRecognition();
+      } else if (location.state?.startImmediately) {
+        // Auto-start if coming back from MicTest
+        startInterview();
       }
     }
   };
 
   const startInterview = async () => {
     if (!interviewId) return;
+
+    // If not already starting from mic test, go to mic test first
+    if (!location.state?.startImmediately) {
+      navigate("/mic-test", { state: { interviewId } });
+      return;
+    }
     
     setLoading(true);
     const result = await api.startInterview(interviewId);
     setLoading(false);
     
     if (result.error) {
-      toast.error(result.error);
+      const errMsg = typeof result.error === 'string' ? result.error : (result.error as any)?.error || 'Failed to start interview';
+      toast.error(errMsg);
     } else {
       setInterviewStarted(true);
       startVoiceRecognition();
@@ -548,7 +558,8 @@ const Interview = () => {
     
     if (result.error) {
       console.error('❌ Failed to complete interview:', result.error);
-      toast.error(result.error);
+      const errMsg = typeof result.error === 'string' ? result.error : (result.error as any)?.error || 'Failed to complete interview';
+      toast.error(errMsg);
     } else {
       console.log('✅ Interview completed successfully!');
       toast.success("Interview completed successfully!");

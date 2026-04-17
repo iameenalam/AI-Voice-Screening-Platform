@@ -11,6 +11,7 @@ const MicTest = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const interviewId = location.state?.interviewId || localStorage.getItem('currentInterviewId');
+  const token = location.state?.token;
   const [testing, setTesting] = useState(false);
   const [testComplete, setTestComplete] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -114,7 +115,11 @@ const MicTest = () => {
   };
 
   const handleStartInterview = () => {
-    navigate("/interview", { state: { interviewId } });
+    if (token) {
+      navigate(`/interview/${token}`, { state: { interviewId, token, startImmediately: true } });
+    } else {
+      navigate("/interview", { state: { interviewId, startImmediately: true } });
+    }
   };
 
   return (
