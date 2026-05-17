@@ -31,7 +31,13 @@ const UploadCV = () => {
       const result = await api.uploadCV(e.target.files[0]);
       
       if (result.error) {
-        toast.error(result.error);
+        const errMsg = typeof result.error === 'string' ? result.error : (result.error as any).error || 'Upload failed';
+        toast.error(errMsg + " - Please enter details manually.");
+        // Fallback to manual entry state with empty data
+        setCandidateData({ name: "", role: "", email: "" });
+        setFullRole("");
+        setRawExtractedData({});
+        setExtracted(true);
         setUploading(false);
         return;
       }
@@ -62,7 +68,7 @@ const UploadCV = () => {
         if (hasData) {
           toast.success("Contact details extracted successfully!");
         } else {
-          toast.warning("Could not extract data automatically. Please enter details manually.");
+          toast.warning("Could not extract all data. Please complete the fields manually.");
         }
       }
       

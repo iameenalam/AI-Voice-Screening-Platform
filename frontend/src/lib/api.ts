@@ -251,6 +251,95 @@ class ApiClient {
       recentInterviews: any[];
     }>('/dashboard/stats');
   }
+
+  // Interview Invitations
+  async sendInterviewInvite(candidateId: string, questions: string[]) {
+    return this.request<any>('/candidates/send-interview-invite', {
+      method: 'POST',
+      body: JSON.stringify({ candidateId, questions }),
+    });
+  }
+
+  async batchSendInvites(candidateIds: string[], questions: string[]) {
+    return this.request<any>('/candidates/batch-send-invites', {
+      method: 'POST',
+      body: JSON.stringify({ candidateIds, questions }),
+    });
+  }
+
+  async resendInterviewEmail(candidateId: string) {
+    return this.request<any>('/candidates/resend-interview-email', {
+      method: 'POST',
+      body: JSON.stringify({ candidateId }),
+    });
+  }
+
+  // Public Interview (token-based, no auth)
+  async getPublicInterview(token: string) {
+    return this.publicRequest<any>(`/interviews/public/${token}`);
+  }
+
+  async startPublicInterview(token: string) {
+    return this.publicRequest<any>(`/interviews/public/${token}/start`, {
+      method: 'POST',
+    });
+  }
+
+  async addPublicTranscriptEntry(
+    token: string,
+    speaker: 'AI' | 'Candidate',
+    text: string,
+    timestamp?: number,
+    questionIndex?: number
+  ) {
+    return this.publicRequest<any>(`/interviews/public/${token}/transcript`, {
+      method: 'POST',
+      body: JSON.stringify({ speaker, text, timestamp, questionIndex }),
+    });
+  }
+
+  async completePublicInterview(token: string) {
+    return this.publicRequest<any>(`/interviews/public/${token}/complete`, {
+      method: 'POST',
+    });
+  }
+
+  // Public request helper (no auth token)
+  private async publicRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: {
+            error: data.error || 'Request failed',
+            details: data.details,
+          },
+        };
+      }
+
+      return { data };
+    } catch (error) {
+      return {
+        error: {
+          error: error instanceof Error ? error.message : 'Network error',
+        },
+      };
+    }
+  }
 }
 
 export const api = new ApiClient();
