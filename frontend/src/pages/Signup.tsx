@@ -57,7 +57,7 @@ const Signup = () => {
       });
     } else {
       toast.success("Account created successfully!");
-      navigate("/upload-cv");
+      navigate("/dashboard");
     }
   };
 
