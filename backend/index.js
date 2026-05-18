@@ -8,6 +8,8 @@ import interviewRoutes from './routes/interviews.js';
 import dashboardRoutes from './routes/dashboard.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRouteHandler } from "uploadthing/express";
+import { uploadRouter } from "./uploadthing.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +65,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/interviews', interviewRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use(
+  "/api/uploadthing",
+  createRouteHandler({
+    router: uploadRouter,
+    config: {
+      token: process.env.UPLOADTHING_TOKEN,
+    }
+  })
+);
 
 app.get('/api/health', (req, res) => {
   const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };

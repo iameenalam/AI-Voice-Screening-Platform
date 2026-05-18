@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing";
 
 const UploadCV = () => {
   const navigate = useNavigate();
@@ -24,23 +25,33 @@ const UploadCV = () => {
   const [showFullRole, setShowFullRole] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
 
+  const { startUpload } = useUploadThing("cvUploader");
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setUploading(true);
+      const file = e.target.files[0];
       
-      const result = await api.uploadCV(e.target.files[0]);
+      try {
+        const uploadRes = await startUpload([file]);
+        if (!uploadRes || uploadRes.length === 0) {
+          throw new Error("Upload failed");
+        }
+        
+        const fileUrl = (uploadRes[0] as any).ufsUrl || uploadRes[0].url;
+        const result = await api.uploadCV(fileUrl, file.name);
       
-      if (result.error) {
-        const errMsg = typeof result.error === 'string' ? result.error : (result.error as any).error || 'Upload failed';
-        toast.error(errMsg + " - Please enter details manually.");
-        // Fallback to manual entry state with empty data
-        setCandidateData({ name: "", role: "", email: "" });
-        setFullRole("");
-        setRawExtractedData({});
-        setExtracted(true);
-        setUploading(false);
-        return;
-      }
+        if (result.error) {
+          const errMsg = typeof result.error === 'string' ? result.error : (result.error as any).error || 'Upload failed';
+          toast.error(errMsg + " - Please enter details manually.");
+          // Fallback to manual entry state with empty data
+          setCandidateData({ name: "", role: "", email: "" });
+          setFullRole("");
+          setRawExtractedData({});
+          setExtracted(true);
+          setUploading(false);
+          return;
+        }
 
       if (result.data) {
         // API returns { success: true, data: extractedData, cvUrl: string }
@@ -73,6 +84,10 @@ const UploadCV = () => {
       }
       
       setUploading(false);
+      } catch (err: any) {
+        toast.error(err.message || "Upload failed");
+        setUploading(false);
+      }
     }
   };
 

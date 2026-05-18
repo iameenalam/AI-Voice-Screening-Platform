@@ -78,12 +78,36 @@ const Applications = () => {
     setFilteredCandidates(result);
   }, [filterField, filterStatus, searchQuery, candidates]);
 
-  const handleDownloadCV = (cvUrl: string) => {
+  const handleDownloadCV = async (cvUrl: string) => {
     if (!cvUrl) {
       toast.error('No CV/Resume available for this candidate');
       return;
     }
-    window.open(`${HOST_URL}${cvUrl}`, "_blank");
+    
+    try {
+      toast.loading("Downloading CV...", { id: "download-cv" });
+      const isAbsoluteUrl = cvUrl.startsWith('http://') || cvUrl.startsWith('https://');
+      let fetchUrl = isAbsoluteUrl ? cvUrl : `${HOST_URL}${cvUrl}`;
+      
+      const response = await fetch(fetchUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = cvUrl.split('/').pop()?.split('?')[0] || 'Candidate_CV.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Download complete", { id: "download-cv" });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("Failed to download CV", { id: "download-cv" });
+    }
   };
 
   const getStatusBadge = (status: string) => {
