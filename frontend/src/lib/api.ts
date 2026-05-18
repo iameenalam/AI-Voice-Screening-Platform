@@ -105,17 +105,15 @@ class ApiClient {
   }
 
   // Candidates
-  async uploadCV(file: File) {
-    const formData = new FormData();
-    formData.append('cv', file);
-
+  async uploadCV(cvUrl: string, fileName: string) {
     const token = this.getToken();
     const response = await fetch(`${API_BASE_URL}/candidates/upload-cv`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: formData,
+      body: JSON.stringify({ cvUrl, fileName }),
     });
 
     const data = await response.json();
@@ -150,13 +148,11 @@ class ApiClient {
     return this.request<any>(`/candidates/${id}`);
   }
 
-  async publicParseCV(file: File) {
-    const formData = new FormData();
-    formData.append('cv', file);
-
+  async publicParseCV(cvUrl: string, fileName: string) {
     const response = await fetch(`${API_BASE_URL}/candidates/public-parse-cv`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cvUrl, fileName }),
     });
 
     const data = await response.json();
@@ -166,10 +162,11 @@ class ApiClient {
     return { data };
   }
 
-  async publicApply(formData: FormData) {
+  async publicApply(applicationData: any) {
     const response = await fetch(`${API_BASE_URL}/candidates/public-apply`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(applicationData),
     });
 
     const data = await response.json();

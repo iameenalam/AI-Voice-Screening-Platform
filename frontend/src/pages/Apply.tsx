@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { Upload, CheckCircle2, Loader2, Building, Briefcase, Mail, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useUploadThing } from "@/lib/uploadthing";
 
 const JOB_FIELDS = [
   "Software Engineering",
@@ -28,6 +29,7 @@ const Apply = () => {
   const [submitted, setSubmitted] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [companies, setCompanies] = useState<string[]>([]);
+  const { startUpload } = useUploadThing("cvUploader");
 
   const [candidateData, setCandidateData] = useState({
     name: "",
@@ -72,24 +74,37 @@ const Apply = () => {
 
     setSubmitting(true);
 
-    const formData = new FormData();
-    formData.append('cv', cvFile);
-    formData.append('name', candidateData.name);
-    formData.append('email', candidateData.email);
-    formData.append('appliedCompany', candidateData.appliedCompany);
-    formData.append('jobField', candidateData.jobField);
+    try {
+      const uploadRes = await startUpload([cvFile]);
+      if (!uploadRes || uploadRes.length === 0) {
+        throw new Error("CV upload failed");
+      }
+      
+      const fileUrl = (uploadRes[0] as any).ufsUrl || uploadRes[0].url;
 
-    const result = await api.publicApply(formData);
-    
-    setSubmitting(false);
+      const applicationData = {
+        name: candidateData.name,
+        email: candidateData.email,
+        appliedCompany: candidateData.appliedCompany,
+        jobField: candidateData.jobField,
+        cvUrl: fileUrl,
+      };
 
-    if (result.error) {
-      toast.error(typeof result.error === 'string' ? result.error : (result.error as any).error || 'Application failed');
-      return;
+      const result = await api.publicApply(applicationData);
+      
+      setSubmitting(false);
+
+      if (result.error) {
+        toast.error(typeof result.error === 'string' ? result.error : (result.error as any).error || 'Application failed');
+        return;
+      }
+
+      // Show thank you page
+      setSubmitted(true);
+    } catch (err: any) {
+      toast.error(err.message || "Application failed");
+      setSubmitting(false);
     }
-
-    // Show thank you page
-    setSubmitted(true);
   };
 
   // Thank you screen after successful submission

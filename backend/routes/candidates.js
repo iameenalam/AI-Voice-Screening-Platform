@@ -531,48 +531,48 @@ function fallbackExtraction(text) {
 }
 
 // Upload CV and extract data
-router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) => {
+router.post('/upload-cv', authenticate, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    const { cvUrl, fileName } = req.body;
+    if (!cvUrl || !fileName) {
+      return res.status(400).json({ error: 'No file URL or name provided' });
     }
 
-    console.log(`\n📤 CV Upload started`);
-    console.log(`📁 File: ${req.file.originalname}`);
-    console.log(`📏 Size: ${req.file.size} bytes`);
+    console.log(`\n📤 CV Upload started from URL: ${cvUrl}`);
+    console.log(`📁 File: ${fileName}`);
 
     let text = '';
-    const filePath = req.file.path;
-    const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const tempFilePath = path.join(process.cwd(), 'uploads', `temp_${Date.now()}.${fileExtension}`);
 
     try {
+      // Ensure temp dir exists
+      await fs.mkdir(path.join(process.cwd(), 'uploads'), { recursive: true });
+      
+      // Download the file from UploadThing
+      const response = await fetch(cvUrl);
+      if (!response.ok) throw new Error('Failed to fetch file from UploadThing');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(tempFilePath, buffer);
+
       if (fileExtension === 'pdf') {
         console.log('📄 Processing PDF file...');
-        text = await extractTextFromPDF(filePath);
+        text = await extractTextFromPDF(tempFilePath);
       } else if (['doc', 'docx'].includes(fileExtension)) {
         console.log('📄 Processing DOCX file...');
-        text = await extractTextFromDOCX(filePath);
+        text = await extractTextFromDOCX(tempFilePath);
       } else {
-        await fs.unlink(filePath);
+        await fs.unlink(tempFilePath);
         return res.status(400).json({ error: 'Unsupported file format. Please upload PDF, DOC, or DOCX.' });
       }
 
       const extractedData = await parseCVText(text);
 
-      // Check if we got meaningful data
-      const hasData = extractedData.name || extractedData.email || extractedData.phone;
-      
-      // Move to permanent storage
-      const ext = req.file.originalname.split('.').pop() || 'pdf';
-      const uniqueFileName = `cv_${Date.now()}_${Math.round(Math.random() * 1E9)}.${ext}`;
-      const targetDir = path.join(process.cwd(), 'uploads', 'cvs');
-      
-      await fs.mkdir(targetDir, { recursive: true });
-      const targetPath = path.join(targetDir, uniqueFileName);
-      await fs.rename(filePath, targetPath);
-      const cvUrl = `/uploads/cvs/${uniqueFileName}`;
+      // Clean up temp file
+      await fs.unlink(tempFilePath);
 
-      console.log(`✅ CV saved to: ${cvUrl}`);
+      console.log(`✅ CV URL: ${cvUrl}`);
       console.log('✅ CV processing complete\n');
 
       res.json({
@@ -583,7 +583,7 @@ router.post('/upload-cv', authenticate, upload.single('cv'), async (req, res) =>
     } catch (error) {
       // Clean up on error
       try {
-        await fs.unlink(filePath);
+        await fs.unlink(tempFilePath);
       } catch {}
       
       console.error('❌ CV extraction error:', error.message);
@@ -635,26 +635,34 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // Public CV Parse (No authentication required, no permanent saving)
-router.post('/public-parse-cv', upload.single('cv'), async (req, res) => {
+router.post('/public-parse-cv', async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { cvUrl, fileName } = req.body;
+    if (!cvUrl || !fileName) return res.status(400).json({ error: 'No file URL provided' });
 
     let text = '';
-    const filePath = req.file.path;
-    const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const tempFilePath = path.join(process.cwd(), 'uploads', `temp_${Date.now()}.${fileExtension}`);
 
     try {
+      await fs.mkdir(path.join(process.cwd(), 'uploads'), { recursive: true });
+      const response = await fetch(cvUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(tempFilePath, buffer);
+
       if (fileExtension === 'pdf') {
-        text = await extractTextFromPDF(filePath);
+        text = await extractTextFromPDF(tempFilePath);
       } else if (['doc', 'docx'].includes(fileExtension)) {
-        text = await extractTextFromDOCX(filePath);
+        text = await extractTextFromDOCX(tempFilePath);
       } else {
-        await fs.unlink(filePath);
+        await fs.unlink(tempFilePath);
         return res.status(400).json({ error: 'Unsupported file format.' });
       }
 
       const extractedData = await parseCVText(text);
-      await fs.unlink(filePath); // Clean up temp file
+      await fs.unlink(tempFilePath); // Clean up temp file
 
       const hasData = extractedData.name || extractedData.email || extractedData.phone;
       if (!hasData) {
@@ -665,7 +673,7 @@ router.post('/public-parse-cv', upload.single('cv'), async (req, res) => {
 
       res.json({ success: true, data: extractedData });
     } catch (error) {
-      try { await fs.unlink(filePath); } catch {}
+      try { await fs.unlink(tempFilePath); } catch {}
       res.status(500).json({ error: 'Parsing failed', details: error.message });
     }
   } catch (error) {
@@ -673,27 +681,13 @@ router.post('/public-parse-cv', upload.single('cv'), async (req, res) => {
   }
 });
 
-// Public Apply (Saves candidate + file permanently)
-router.post('/public-apply', upload.single('cv'), async (req, res) => {
+// Public Apply (Saves candidate with UploadThing URL permanently)
+router.post('/public-apply', async (req, res) => {
   try {
-    const { name, email, phone, appliedCompany, jobField, extractedData } = req.body;
-    let cvUrl = '';
+    const { name, email, phone, appliedCompany, jobField, extractedData, cvUrl } = req.body;
 
-    if (!name || !email || !appliedCompany || !jobField) {
-      if (req.file) { try { await fs.unlink(req.file.path); } catch {} }
+    if (!name || !email || !appliedCompany || !jobField || !cvUrl) {
       return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (req.file) {
-      const ext = req.file.originalname.split('.').pop();
-      const uniqueFileName = `cv_${Date.now()}_${Math.round(Math.random() * 1E9)}.${ext}`;
-      const targetDir = path.join(process.cwd(), 'uploads', 'cvs');
-      
-      await fs.mkdir(targetDir, { recursive: true });
-      const targetPath = path.join(targetDir, uniqueFileName);
-      await fs.rename(req.file.path, targetPath);
-      
-      cvUrl = `/uploads/cvs/${uniqueFileName}`;
     }
 
     const candidate = new Candidate({
@@ -705,13 +699,12 @@ router.post('/public-apply', upload.single('cv'), async (req, res) => {
       role: jobField,
       fullRole: jobField,
       cvUrl,
-      extractedData: extractedData ? JSON.parse(extractedData) : {},
+      extractedData: extractedData ? (typeof extractedData === 'string' ? JSON.parse(extractedData) : extractedData) : {},
     });
 
     await candidate.save();
     res.status(201).json({ success: true, candidate });
   } catch (error) {
-    if (req.file) { try { await fs.unlink(req.file.path); } catch {} }
     res.status(500).json({ error: error.message });
   }
 });
