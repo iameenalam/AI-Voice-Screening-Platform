@@ -21,12 +21,14 @@ const PORT = process.env.PORT || 3000;
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development' || !origin) {
+      return callback(null, true);
+    }
+    
     const allowedOrigins = process.env.FRONTEND_URL
       ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
       : ['http://localhost:8080', 'http://localhost:5173', 'http://127.0.0.1:8080'];
-    
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes(origin)) {
       callback(null, true);

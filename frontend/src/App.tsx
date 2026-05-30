@@ -15,6 +15,7 @@ import Interview from "./pages/Interview";
 import Results from "./pages/Results";
 import Download from "./pages/Download";
 import Dashboard from "./pages/Dashboard";
+import ComposeInvite from "./pages/ComposeInvite";
 import Transcript from "./pages/Transcript";
 import Apply from "./pages/Apply";
 import PublicInterview from "./pages/PublicInterview";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/candidate-pool" element={<Applications />} />
             <Route path="/upload-cv" element={<UploadCV />} />
             <Route path="/screening-setup" element={<ScreeningSetup />} />
+            <Route path="/compose-invite" element={<ComposeInvite />} />
             <Route path="/mic-test" element={<MicTest />} />
             <Route path="/interview" element={<Interview />} />
             <Route path="/results" element={<Results />} />

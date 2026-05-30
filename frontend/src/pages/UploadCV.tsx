@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Logo } from "@/components/Logo";
+import { Sidebar } from "@/components/Sidebar";
 import { useNavigate } from "react-router-dom";
-import { Upload, CheckCircle2, Loader2 } from "lucide-react";
+import { 
+  UploadCloud, CheckCircle2, ArrowRight, X, FileText, 
+  Sparkles, Shield, Check, Paperclip 
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
@@ -14,6 +17,7 @@ const UploadCV = () => {
   const navigate = useNavigate();
   const [extracted, setExtracted] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadFileName, setUploadFileName] = useState("");
   const [candidateData, setCandidateData] = useState({
     name: "",
     role: "",
@@ -31,6 +35,7 @@ const UploadCV = () => {
     if (e.target.files && e.target.files[0]) {
       setUploading(true);
       const file = e.target.files[0];
+      setUploadFileName(file.name);
       
       try {
         const uploadRes = await startUpload([file]);
@@ -44,7 +49,6 @@ const UploadCV = () => {
         if (result.error) {
           const errMsg = typeof result.error === 'string' ? result.error : (result.error as any).error || 'Upload failed';
           toast.error(errMsg + " - Please enter details manually.");
-          // Fallback to manual entry state with empty data
           setCandidateData({ name: "", role: "", email: "" });
           setFullRole("");
           setRawExtractedData({});
@@ -53,37 +57,34 @@ const UploadCV = () => {
           return;
         }
 
-      if (result.data) {
-        // API returns { success: true, data: extractedData, cvUrl: string }
-        const res = result.data as any;
-        const data = res.data || {};
-        const hasData = data.name || data.email;
-        
-        setCandidateData({
-          name: data.name || "",
-          role: data.role || "",
-          email: data.email || "",
-        });
-        
-        // Capture cvUrl and raw extracted data
-        if (res.cvUrl) setCvUrl(res.cvUrl);
-        setRawExtractedData(data);
-        
-        // Store full role if available
-        if (data.fullRole && data.fullRole !== data.role) {
-          setFullRole(data.fullRole);
+        if (result.data) {
+          const res = result.data as any;
+          const data = res.data || {};
+          const hasData = data.name || data.email;
+          
+          setCandidateData({
+            name: data.name || "",
+            role: data.role || "",
+            email: data.email || "",
+          });
+          
+          if (res.cvUrl) setCvUrl(res.cvUrl);
+          setRawExtractedData(data);
+          
+          if (data.fullRole && data.fullRole !== data.role) {
+            setFullRole(data.fullRole);
+          }
+          
+          setExtracted(true);
+          
+          if (hasData) {
+            toast.success("Contact details extracted successfully!");
+          } else {
+            toast.warning("Could not extract all data. Please complete the fields manually.");
+          }
         }
         
-        setExtracted(true);
-        
-        if (hasData) {
-          toast.success("Contact details extracted successfully!");
-        } else {
-          toast.warning("Could not extract all data. Please complete the fields manually.");
-        }
-      }
-      
-      setUploading(false);
+        setUploading(false);
       } catch (err: any) {
         toast.error(err.message || "Upload failed");
         setUploading(false);
@@ -99,7 +100,6 @@ const UploadCV = () => {
       return;
     }
 
-    // Include full role, cvUrl, and extractedData in the submission
     const candidatePayload = {
       ...candidateData,
       fullRole: fullRole || candidateData.role,
@@ -121,163 +121,315 @@ const UploadCV = () => {
       const data = result.data as any;
       setCandidateId(data._id);
       localStorage.setItem('currentCandidateId', data._id);
-      // Pass full role for AI question generation
       navigate("/screening-setup", { 
         state: { 
           candidateId: data._id, 
-          role: fullRole || candidateData.role // Use full role for context
+          role: fullRole || candidateData.role
         } 
       });
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Background gradient matching landing page */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
-      
-      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
-              <Logo />
-            </button>
-          </div>
-        </div>
-      </nav>
-      
-      <div className="flex-1 flex items-center justify-center relative z-10">
-        <div className="container mx-auto px-4 py-8 md:py-12 w-full">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-6 md:mb-8 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              Upload Candidate CV
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground">
-              We'll automatically extract candidate information to set up the interview
-            </p>
-          </div>
+    <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] flex font-sans">
+      <Sidebar />
 
-          <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {!extracted ? (
-                <div className="space-y-4">
-                  <Label htmlFor="cv-upload" className="cursor-pointer">
-                    <div className="border-2 border-dashed border-border rounded-lg p-8 md:p-12 text-center hover:border-primary/50 transition-colors">
-                      {uploading ? (
-                        <>
-                          <Loader2 className="h-12 w-12 mx-auto mb-4 text-primary animate-spin" />
-                          <p className="text-lg mb-2">Extracting information...</p>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-10 md:h-12 w-10 md:w-12 mx-auto mb-4 text-muted-foreground" />
-                          <p className="text-base md:text-lg mb-2">Click to upload CV</p>
-                          <p className="text-xs md:text-sm text-muted-foreground">
-                            PDF, DOC, or DOCX (Max 10MB)
-                          </p>
-                        </>
-                      )}
+      <main className="flex-1 overflow-y-auto h-screen flex items-center justify-center p-4 relative">
+        <div className="w-full max-w-[550px]">
+          <Card className="bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            {!uploading && !extracted && (
+              <>
+                {/* Header Image 1 */}
+                <div className="p-8 pb-6 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-bold text-[#0A1128]">Bulk CV Upload</h2>
+                    <p className="text-[13px] text-[#64748B] mt-1 font-medium">Enhance your candidate pool with AI-driven CV parsing.</p>
+                  </div>
+                  <button onClick={() => navigate('/dashboard')} className="text-[#94A3B8] hover:text-[#0A1128] transition-colors">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                {/* Dropzone Image 1 */}
+                <div className="px-8">
+                  <Label htmlFor="cv-upload" className="cursor-pointer block border-2 border-dashed border-[#E2E8F0] hover:border-[#0066FF] hover:bg-[#F8FAFC] transition-colors rounded-2xl p-8 flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 bg-[#EEF2FF] rounded-xl flex items-center justify-center text-[#0066FF] mb-4">
+                      <UploadCloud className="h-6 w-6" />
                     </div>
-                    <Input
-                      id="cv-upload"
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleFileUpload}
-                      disabled={uploading}
-                    />
+                    <h3 className="text-[15px] font-bold text-[#0A1128] mb-1">Drop CVs here to start</h3>
+                    <p className="text-[13px] text-[#64748B] mb-5">Select up to 50 PDF or DOCX files</p>
+                    <span className="px-5 py-2 bg-white border border-[#E2E8F0] text-[#0066FF] text-[13px] font-bold rounded-xl shadow-sm inline-block">
+                      Browse Files
+                    </span>
+                    <Input id="cv-upload" type="file" className="hidden" accept=".pdf,.doc,.docx" multiple onChange={handleFileUpload} />
                   </Label>
                 </div>
-              ) : (
-                <div className="space-y-4 animate-fade-in">
-                  <div className="flex items-center gap-2 text-green-500 mb-4">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <span className="font-medium">Contact details extracted successfully!</span>
+
+                {/* Recently Uploaded Image 1 */}
+                <div className="px-8 mt-8 mb-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider">Recently Uploaded</span>
+                    <span className="text-[11px] font-bold text-[#0066FF]">4 files ready</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
+                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
+                        <FileText className="h-4 w-4 text-[#0066FF]" />
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-bold text-[#0A1128]">Alex_Chen_Senior_Dev.pdf</div>
+                        <div className="text-[11px] text-[#64748B] font-medium mt-0.5">1.2 MB • Processing Match Score...</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
+                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
+                        <FileText className="h-4 w-4 text-[#0066FF]" />
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-bold text-[#0A1128]">Sarah_Miller_UX_Resume.docx</div>
+                        <div className="text-[11px] text-[#64748B] font-medium mt-0.5">840 KB • Metadata verified</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-[#FFF7ED] rounded-xl border border-[#FFEDD5]">
+                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
+                        <Sparkles className="h-4 w-4 text-[#EA580C]" />
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-bold text-[#0A1128] flex items-center gap-2">
+                          Marketing_Lead_2024.pdf <div className="w-1.5 h-1.5 rounded-full bg-[#BFDBFE]"></div>
+                        </div>
+                        <div className="text-[11px] font-bold text-[#C2410C] mt-0.5">Vocalent AI: Top 5% Candidate detected</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Image 1 */}
+                <div className="px-8 py-5 mt-4 flex items-center justify-between border-t border-[#F1F5F9]">
+                  <div className="flex items-center gap-2 text-[11px] text-[#64748B] font-medium">
+                    <Shield className="h-4 w-4 text-[#94A3B8]" />
+                    All files are encrypted and processed securely.
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => navigate('/dashboard')} className="text-[13px] font-bold text-[#0A1128] px-4 py-2 hover:bg-[#F1F5F9] rounded-lg transition-colors">
+                      Cancel
+                    </button>
+                    <Label htmlFor="cv-upload" className="text-[13px] font-bold text-white bg-[#0066FF] hover:bg-[#0052CC] px-6 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer">
+                      Upload Files
+                    </Label>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {uploading && (
+              <>
+                {/* Header Image 2 */}
+                <div className="p-8 pb-6 flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-bold text-[#0A1128]">Upload Progress</h2>
+                    <p className="text-[13px] text-[#64748B] mt-1 font-medium">Processing candidate profiles and documentation.</p>
+                  </div>
+                  <button className="text-[#94A3B8] hover:text-[#0A1128] transition-colors">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="px-8 space-y-4">
+                  {/* Completed 1 */}
+                  <div className="p-4 bg-white border-2 border-[#0066FF] rounded-xl relative overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
+                          <FileText className="h-5 w-5 text-[#0066FF]" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-[#0A1128]">resume_ahmed_khan.pdf</div>
+                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">1.2 MB • <span className="text-[#0A1128]">COMPLETED</span></div>
+                        </div>
+                      </div>
+                      <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-sm">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1 bg-[#0066FF] w-full"></div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                  {/* Completed 2 */}
+                  <div className="p-4 bg-white border-2 border-[#0066FF] rounded-xl relative overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
+                          <FileText className="h-5 w-5 text-[#0066FF]" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-[#0A1128]">cv_sarah_ali.docx</div>
+                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">840 KB • <span className="text-[#0A1128]">COMPLETED</span></div>
+                        </div>
+                      </div>
+                      <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-sm">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1 bg-[#0066FF] w-full"></div>
+                  </div>
+
+                  {/* Uploading */}
+                  <div className="p-4 bg-white border border-[#E2E8F0] rounded-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
+                          <FileText className="h-5 w-5 text-[#64748B]" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-[#0A1128]">{uploadFileName || "portfolio_jane_doe.pdf"}</div>
+                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">4.8 MB • UPLOADING...</div>
+                        </div>
+                      </div>
+                      <div className="text-[13px] font-bold text-[#0066FF]">45%</div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1 bg-[#F1F5F9] w-full mt-3">
+                      <div className="h-full bg-[#0066FF] w-[45%] rounded-r-full transition-all duration-500"></div>
+                    </div>
+                  </div>
+
+                  {/* Waiting */}
+                  <div className="p-4 bg-white border border-[#E2E8F0] rounded-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
+                          <Paperclip className="h-5 w-5 text-[#64748B]" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-[#0A1128]">certifications_pack.zip</div>
+                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">12.4 MB • WAITING</div>
+                        </div>
+                      </div>
+                      <div className="text-[13px] font-bold text-[#0A1128]">0%</div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1 bg-[#F1F5F9] w-full mt-3">
+                      <div className="h-full bg-[#0066FF] w-[5%] rounded-r-full"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-8 mt-6">
+                  <div className="bg-[#FFF7ED] rounded-xl p-3 flex items-center gap-3 border border-transparent">
+                    <div className="w-2 h-2 rounded-full bg-[#0066FF] animate-pulse"></div>
+                    <span className="text-[12px] text-[#0A1128]">
+                      Syncing with <strong className="font-bold">Vocalent Cloud</strong>. Please do not close this window.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer Image 2 */}
+                <div className="px-8 py-5 mt-6 flex items-center justify-end gap-3 bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-[20px]">
+                  <button className="text-[13px] font-bold text-[#0A1128] px-4 py-2 hover:bg-[#E2E8F0] rounded-lg transition-colors">
+                    Cancel
+                  </button>
+                  <button disabled className="text-[13px] font-bold text-[#94A3B8] bg-[#E2E8F0] px-6 py-2.5 rounded-xl flex items-center gap-2 cursor-not-allowed">
+                    Continue <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {extracted && !uploading && (
+              <form onSubmit={handleSubmit} className="flex flex-col h-full">
+                {/* Header for Extracted state */}
+                <div className="p-8 pb-4 border-b border-[#F1F5F9]">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-[#D1FAE5] flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[#0A1128]">Profile Extracted</h2>
+                  </div>
+                  <p className="text-[13px] text-[#64748B] font-medium ml-11">Review details for {candidateData.name || "the candidate"} before matching.</p>
+                </div>
+
+                <div className="p-8 space-y-5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Candidate Name</Label>
                     <Input
                       id="name"
                       value={candidateData.name}
-                      onChange={(e) =>
-                        setCandidateData({ ...candidateData, name: e.target.value })
-                      }
-                      className="bg-input"
+                      onChange={(e) => setCandidateData({ ...candidateData, name: e.target.value })}
+                      className="bg-white border-[#E2E8F0] rounded-xl text-[14px] font-semibold py-5 focus:border-[#0066FF]"
+                      placeholder="e.g. Ahmed Khan"
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="role">Role</Label>
+                      <Label htmlFor="role" className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Target Job Field / Role</Label>
                       {fullRole && fullRole !== candidateData.role && (
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="sm"
                           onClick={() => setShowFullRole(!showFullRole)}
-                          className="text-xs h-6 px-2"
+                          className="text-[11px] font-bold text-[#0066FF] hover:underline"
                         >
-                          {showFullRole ? "Show Less" : "Show Full"}
-                        </Button>
+                          {showFullRole ? "Show Less" : "Show Full Description"}
+                        </button>
                       )}
                     </div>
                     {showFullRole && fullRole ? (
                       <div className="space-y-2">
-                        <div className="p-3 bg-muted rounded-md text-sm">
+                        <div className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[13px] leading-relaxed font-medium text-[#475569]">
                           {fullRole}
                         </div>
                         <Input
                           id="role"
                           value={candidateData.role}
-                          onChange={(e) =>
-                            setCandidateData({ ...candidateData, role: e.target.value })
-                          }
-                          className="bg-input"
-                          placeholder="Edit role here..."
+                          onChange={(e) => setCandidateData({ ...candidateData, role: e.target.value })}
+                          className="bg-white border-[#E2E8F0] rounded-xl text-[14px] font-semibold py-5 focus:border-[#0066FF]"
                         />
                       </div>
                     ) : (
                       <Input
                         id="role"
                         value={candidateData.role}
-                        onChange={(e) =>
-                          setCandidateData({ ...candidateData, role: e.target.value })
-                        }
-                        className="bg-input"
+                        onChange={(e) => setCandidateData({ ...candidateData, role: e.target.value })}
+                        className="bg-white border-[#E2E8F0] rounded-xl text-[14px] font-semibold py-5 focus:border-[#0066FF]"
+                        placeholder="e.g. Senior Frontend Engineer"
                       />
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email Address</Label>
                     <Input
                       id="email"
                       type="email"
                       value={candidateData.email}
-                      onChange={(e) =>
-                        setCandidateData({ ...candidateData, email: e.target.value })
-                      }
-                      className="bg-input"
+                      onChange={(e) => setCandidateData({ ...candidateData, email: e.target.value })}
+                      className="bg-white border-[#E2E8F0] rounded-xl text-[14px] font-semibold py-5 focus:border-[#0066FF]"
+                      placeholder="name@company.com"
                     />
                   </div>
+                </div>
 
+                <div className="px-8 py-5 mt-auto flex gap-3 bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-[20px]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setExtracted(false)}
+                    className="flex-1 border-[#E2E8F0] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0A1128] font-bold text-[13px] py-6 rounded-xl transition-colors"
+                  >
+                    Back to Upload
+                  </Button>
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all"
-                    size="lg"
+                    className="flex-1 bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-[13px] py-6 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors"
                   >
-                    Next: Screening Questions
+                    Setup Questions
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
-              )}
-            </form>
+              </form>
+            )}
           </Card>
         </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };

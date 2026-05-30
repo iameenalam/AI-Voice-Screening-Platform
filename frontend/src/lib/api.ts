@@ -250,17 +250,17 @@ class ApiClient {
   }
 
   // Interview Invitations
-  async sendInterviewInvite(candidateId: string, questions: string[]) {
+  async sendInterviewInvite(candidateId: string, questions: string[], customSubject?: string, customMessage?: string) {
     return this.request<any>('/candidates/send-interview-invite', {
       method: 'POST',
-      body: JSON.stringify({ candidateId, questions }),
+      body: JSON.stringify({ candidateId, questions, customSubject, customMessage }),
     });
   }
 
-  async batchSendInvites(candidateIds: string[], questions: string[]) {
+  async batchSendInvites(candidateIds: string[], questions: string[], customSubject?: string, customMessage?: string) {
     return this.request<any>('/candidates/batch-send-invites', {
       method: 'POST',
-      body: JSON.stringify({ candidateIds, questions }),
+      body: JSON.stringify({ candidateIds, questions, customSubject, customMessage }),
     });
   }
 

@@ -88,8 +88,7 @@ const interviewSchema = new mongoose.Schema({
   },
 });
 
-// Index for fast token lookups
-interviewSchema.index({ interviewToken: 1 });
+
 
 export default mongoose.model('Interview', interviewSchema);
 
