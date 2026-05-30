@@ -20,6 +20,7 @@ import Transcript from "./pages/Transcript";
 import Apply from "./pages/Apply";
 import PublicInterview from "./pages/PublicInterview";
 import Applications from "./pages/Applications";
+import Jobs from "./pages/Jobs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
           {/* Protected routes - require authentication */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/jobs" element={<Jobs />} />
             <Route path="/candidate-pool" element={<Applications />} />
             <Route path="/upload-cv" element={<UploadCV />} />
             <Route path="/screening-setup" element={<ScreeningSetup />} />

@@ -36,16 +36,26 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       console.log('⚠️ OpenAI not configured, using fallback questions');
       return res.json({
         questions: [
-          `Tell me about your experience with ${role}.`,
-          'Describe a challenge you faced in a team setting.',
-          'Why are you interested in this position?',
-          'What are your strengths and weaknesses?',
-          'Where do you see yourself in 5 years?',
+          { category: 'Technical Evaluation', text: `Tell me about your experience with ${role}.` },
+          { category: 'Technical Evaluation', text: 'What tools and frameworks do you use daily?' },
+          { category: 'Behavioral / Culture Fit', text: 'Describe a challenge you faced in a team setting.' },
+          { category: 'Behavioral / Culture Fit', text: 'How do you handle disagreements with colleagues?' },
+          { category: 'Onboarding / Intro', text: 'Why are you interested in this position?' },
+          { category: 'Onboarding / Intro', text: 'What are you looking for in your next role?' },
         ],
       });
     }
 
-    const prompt = `Generate 5 professional interview questions for a ${role} position. Return only the questions, one per line, without numbering or bullets.`;
+    const prompt = `Generate professional interview questions for a ${role} position. 
+Divide them into 3 categories: "Technical Evaluation", "Behavioral / Culture Fit", and "Onboarding / Intro".
+Generate exactly 3 questions for each category (9 questions total).
+Return the output EXACTLY in this JSON format:
+[
+  { "category": "Technical Evaluation", "text": "Question text here...", "logic": "Brief logic behind question" },
+  { "category": "Behavioral / Culture Fit", "text": "Question text here...", "logic": "Brief logic behind question" }
+]
+Do not include any other text, markdown blocks, or explanation, just the raw JSON array.`;
+
 
     console.log('🤖 Calling OpenAI to generate questions...');
     const completion = await openai.chat.completions.create({
@@ -53,7 +63,7 @@ router.post('/generate-questions', authenticate, async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: 'You are an expert recruiter. Generate relevant interview questions.',
+          content: 'You are an expert recruiter. Generate relevant interview questions in valid JSON format.',
         },
         {
           role: 'user',
@@ -61,18 +71,15 @@ router.post('/generate-questions', authenticate, async (req, res) => {
         },
       ],
       temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: 800,
     });
 
-    const questionsText = completion.choices[0].message.content;
-    const questions = questionsText
-      .split('\n')
-      .map(q => q.trim())
-      .filter(q => q.length > 0)
-      .slice(0, 5);
+    const content = completion.choices[0].message.content.trim();
+    const jsonText = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const questions = JSON.parse(jsonText);
 
-    console.log(`✅ Generated ${questions.length} questions`);
-    questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.substring(0, 60)}...`));
+    console.log(`✅ Generated ${questions.length} structured questions`);
+    questions.forEach((q, i) => console.log(`  ${i + 1}. ${q.text?.substring(0, 60) || 'Question'}...`));
     console.log('='.repeat(50) + '\n');
 
     res.json({ questions });
@@ -81,9 +88,15 @@ router.post('/generate-questions', authenticate, async (req, res) => {
     // Fallback questions
     res.json({
       questions: [
-        'Tell me about your experience with this role.',
-        'Describe a challenge you faced in a team setting.',
-        'Why are you interested in this position?',
+        { category: 'Technical Evaluation', text: 'Tell me about your experience with this role.', logic: 'Standard technical screen.' },
+        { category: 'Technical Evaluation', text: 'What tools and frameworks do you use daily?', logic: 'Assesses tool proficiency.' },
+        { category: 'Technical Evaluation', text: 'Walk me through a complex technical problem you solved recently.', logic: 'Assesses problem solving.' },
+        { category: 'Behavioral / Culture Fit', text: 'Describe a challenge you faced in a team setting.', logic: 'Assesses teamwork.' },
+        { category: 'Behavioral / Culture Fit', text: 'How do you handle disagreements with colleagues?', logic: 'Assesses conflict resolution.' },
+        { category: 'Behavioral / Culture Fit', text: 'Tell me about a time you had to adapt to a change.', logic: 'Assesses adaptability.' },
+        { category: 'Onboarding / Intro', text: 'Why are you interested in this position?', logic: 'Assesses motivation.' },
+        { category: 'Onboarding / Intro', text: 'What are you looking for in your next role?', logic: 'Assesses alignment.' },
+        { category: 'Onboarding / Intro', text: 'What type of work environment brings out your best?', logic: 'Assesses environment fit.' },
       ],
     });
   }

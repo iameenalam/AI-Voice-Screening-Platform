@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Users, ArrowUpRight, 
   ChevronRight, Activity, Smile, Bell, HelpCircle, 
   Search, UserPlus, RefreshCw, UploadCloud, Network,
-  ArrowRight, Sparkles
+  ArrowRight, Sparkles, Menu, Link
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -55,18 +55,37 @@ const Dashboard = () => {
     }
   };
 
+  const handleCopyLink = () => {
+    const company = user?.company || 'Vocalent';
+    const link = `${window.location.origin}/apply?company=${encodeURIComponent(company)}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Company application link copied to clipboard!');
+  };
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const isEmpty = stats.totalInterviews === 0 && recentInterviews.length === 0;
   const matchScorePercent = Math.round(stats.avgSentiment * 100);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0F172A] flex font-sans">
       {/* Sidebar Component */}
-      <Sidebar />
+      <Sidebar 
+        isOpenMobile={isMobileMenuOpen} 
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+      />
 
       {/* Main Panel Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Header Bar matching mock */}
-        <header className="bg-white border-b border-[#E2E8F0] px-8 py-4 flex items-center justify-between shrink-0">
+        <header className="bg-white border-b border-[#E2E8F0] px-4 md:px-8 py-4 flex items-center justify-between shrink-0 gap-4">
+          <button 
+            className="md:hidden text-[#64748B] hover:text-[#0A1128]"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
           <div className="relative w-full max-w-xl">
             <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-[#94A3B8]" />
             <input
@@ -87,7 +106,30 @@ const Dashboard = () => {
 
         {/* Scrollable Container */}
         <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-          {isEmpty ? (
+          {loading ? (
+            <div className="space-y-8 animate-pulse">
+              <div className="space-y-3">
+                <div className="h-3 w-32 bg-slate-200 rounded"></div>
+                <div className="h-8 w-64 bg-slate-200 rounded"></div>
+                <div className="h-4 w-96 bg-slate-200 rounded"></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map(i => (
+                  <Card key={i} className="p-6 h-28 bg-white border border-[#E2E8F0] rounded-2xl flex items-center justify-between shadow-sm">
+                    <div className="space-y-3">
+                      <div className="h-3 w-24 bg-slate-200 rounded"></div>
+                      <div className="h-8 w-12 bg-slate-200 rounded"></div>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-slate-100"></div>
+                  </Card>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 h-[400px] bg-white rounded-2xl border border-[#E2E8F0] shadow-sm"></div>
+                <div className="h-[400px] bg-white rounded-2xl border border-[#E2E8F0] shadow-sm"></div>
+              </div>
+            </div>
+          ) : isEmpty ? (
             /* EMPTY STATE VIEW matching image exactly */
             <div className="space-y-8 animate-fade-in">
               {/* Dashboard Title & Subtext */}
@@ -101,6 +143,14 @@ const Dashboard = () => {
                 <p className="text-xs text-[#64748B] font-semibold mt-1">
                   Your workspace is ready. Let's start building your dream team by adding your first candidates.
                 </p>
+                <Button
+                  onClick={handleCopyLink}
+                  variant="outline"
+                  className="mt-4 border-[#E2E8F0] text-[#0A1128] font-bold rounded-xl text-xs shadow-sm hover:bg-[#F8FAFC]"
+                >
+                  <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
+                  Copy Public Apply Link
+                </Button>
               </div>
 
               {/* 3 Metric Cards Row */}
@@ -289,12 +339,22 @@ const Dashboard = () => {
                     Screening platform activity and candidate metrics command center.
                   </p>
                 </div>
-                <Button
-                  onClick={() => navigate("/upload-cv")}
-                  className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm"
-                >
-                  Start New Screening
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleCopyLink}
+                    variant="outline"
+                    className="border-[#E2E8F0] text-[#0A1128] font-bold py-6 px-4 rounded-xl text-sm shadow-sm hover:bg-[#F8FAFC]"
+                  >
+                    <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
+                    Copy Apply Link
+                  </Button>
+                  <Button
+                    onClick={() => navigate("/upload-cv")}
+                    className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm"
+                  >
+                    Start New Screening
+                  </Button>
+                </div>
               </div>
 
               {/* 4 Metric Cards */}

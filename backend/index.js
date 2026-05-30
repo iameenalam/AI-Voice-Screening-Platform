@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import candidateRoutes from './routes/candidates.js';
 import interviewRoutes from './routes/interviews.js';
 import dashboardRoutes from './routes/dashboard.js';
+import jobRoutes from './routes/jobs.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRouteHandler } from "uploadthing/express";
@@ -67,6 +68,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/interviews', interviewRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/jobs', jobRoutes);
 app.use(
   "/api/uploadthing",
   createRouteHandler({

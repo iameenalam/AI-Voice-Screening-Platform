@@ -27,36 +27,19 @@ const ScreeningSetup = () => {
   const candidateId = location.state?.candidateId || localStorage.getItem('currentCandidateId');
   const candidateIds = location.state?.candidateIds;
   const isBatch = location.state?.isBatch;
-  const role = location.state?.role || 'Senior UX Designer';
-  const name = location.state?.name || 'Sarah Ali';
+  const role = location.state?.role || 'NaN';
+  const name = location.state?.name || 'NaN';
 
   const defaultQuestions: Question[] = [
-    {
-      category: "DESIGN STRATEGY",
-      text: "Can you describe your design process for a complex B2B dashboard, specifically how you balance technical constraints with user-centric outcomes?",
-      logic: "Inferred from her previous role at Nexus Enterprise."
-    },
-    {
-      category: "TECHNICAL DEPTH",
-      text: "How do you manage design systems at scale across cross-functional teams while ensuring component integrity and accessibility compliance?",
-      logic: "Targeted based on her mastery in Figma and design tokens."
-    },
-    {
-      category: "SOFT SKILLS",
-      text: "Tell us about a time you had a significant disagreement with a product manager regarding a feature's UX. How did you advocate for the user while maintaining a collaborative relationship?",
-      logic: ""
-    },
-    {
-      category: "EMERGING TECH",
-      text: "How are you integrating Generative AI into your current design workflow to accelerate prototyping without sacrificing human-centered principles?",
-      logic: "Vocalent Insight Layer.",
-      isNew: true
-    },
-    {
-      category: "LEADERSHIP",
-      text: "As a Senior Designer, how do you approach mentorship and raising the 'design bar' for junior members within your squad?",
-      logic: ""
-    }
+    { category: "TECHNICAL EVALUATION", text: `Can you describe your experience and technical proficiency relevant to the ${role} role?`, logic: "Standard technical screen." },
+    { category: "TECHNICAL EVALUATION", text: "What tools and frameworks do you use daily, and how do you stay updated with industry trends?", logic: "Assesses tool proficiency." },
+    { category: "TECHNICAL EVALUATION", text: "Walk me through a complex technical problem you solved recently.", logic: "Assesses problem solving." },
+    { category: "BEHAVIORAL / CULTURE FIT", text: "Describe a challenge you faced in a team setting and how you resolved it.", logic: "Assesses teamwork." },
+    { category: "BEHAVIORAL / CULTURE FIT", text: "How do you handle disagreements with colleagues or managers?", logic: "Assesses conflict resolution." },
+    { category: "BEHAVIORAL / CULTURE FIT", text: "Tell me about a time you had to adapt to a significant change at work.", logic: "Assesses adaptability." },
+    { category: "ONBOARDING / INTRO", text: "Why are you interested in this position and our company?", logic: "Assesses motivation." },
+    { category: "ONBOARDING / INTRO", text: "What are you looking for in your next role?", logic: "Assesses alignment." },
+    { category: "ONBOARDING / INTRO", text: "What type of work environment brings out your best performance?", logic: "Assesses environment fit." }
   ];
 
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
@@ -73,20 +56,25 @@ const ScreeningSetup = () => {
     setGenerating(false);
     
     if (result.data?.questions && result.data.questions.length > 0) {
-      setQuestions(result.data.questions.map((q: string) => ({
-        category: "ROLE ALIGNED",
-        text: q,
-        logic: `Generated based on the ${role} requirements.`
-      })));
+      setQuestions(result.data.questions.map((q: any) => {
+        if (typeof q === 'string') {
+          return { category: "ROLE ALIGNED", text: q, logic: `Generated based on the ${role} requirements.` };
+        }
+        return {
+          category: (q.category || "ROLE ALIGNED").toUpperCase(),
+          text: q.text || "",
+          logic: q.logic || `Targeted based on the ${role} requirements.`
+        };
+      }));
     } else {
       // Fallback if API fails or returns empty
       setQuestions(defaultQuestions);
     }
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = (category: string) => {
     setQuestions([...questions, {
-      category: "CUSTOM QUESTION",
+      category: category,
       text: "",
       logic: "Manually added by recruiter.",
       isNew: true,
@@ -142,7 +130,7 @@ const ScreeningSetup = () => {
         isBatch,
         role, 
         name, 
-        questions: questions.map(q => q.text) 
+        questions: questions 
       }
     });
   };
@@ -166,7 +154,6 @@ const ScreeningSetup = () => {
         </div>
         <div className="flex items-center gap-4 text-[#64748B]">
           <span className="cursor-pointer hover:text-[#0A1128]">🔔</span>
-          <span className="cursor-pointer hover:text-[#0A1128]">❓</span>
           <div className="w-8 h-8 rounded-full bg-[#0066FF] border-2 border-white shadow-sm overflow-hidden flex items-center justify-center text-white text-xs">
             JD
           </div>
@@ -194,7 +181,7 @@ const ScreeningSetup = () => {
         </div>
 
         {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
           {/* Left Column (Questions) */}
           <div className="lg:col-span-2">
@@ -217,75 +204,103 @@ const ScreeningSetup = () => {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {questions.map((q, idx) => (
-                <Card key={idx} className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7 relative group">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase">
-                      QUESTION {String(idx + 1).padStart(2, '0')} - {q.category}
-                    </div>
-                    
-                    {/* Action Buttons (Edit / Delete) */}
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => toggleEdit(idx)}
-                        className="p-1.5 text-[#64748B] hover:text-[#0066FF] hover:bg-[#EEF2FF] rounded-md transition-colors"
-                        title={q.isEditing ? "Save" : "Edit"}
-                      >
-                        {q.isEditing ? <Save className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteQuestion(idx)}
-                        className="p-1.5 text-[#64748B] hover:text-[#EF4444] hover:bg-[#FEF2F2] rounded-md transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+            {generating ? (
+              <div className="space-y-10 animate-pulse">
+                {["TECHNICAL EVALUATION", "BEHAVIORAL / CULTURE FIT", "ONBOARDING / INTRO"].map((segment) => (
+                  <div key={segment} className="space-y-4">
+                    <div className="h-6 w-48 bg-slate-200 rounded mb-4"></div>
+                    {[1, 2, 3].map(i => (
+                      <Card key={i} className="bg-white border-none rounded-2xl p-7 relative h-32">
+                        <div className="h-3 w-24 bg-slate-100 rounded mb-4"></div>
+                        <div className="space-y-2 mb-4">
+                          <div className="h-4 w-full bg-slate-200 rounded"></div>
+                          <div className="h-4 w-3/4 bg-slate-200 rounded"></div>
+                        </div>
+                        <div className="h-3 w-1/2 bg-slate-100 rounded mt-4"></div>
+                      </Card>
+                    ))}
                   </div>
+                ))}
+              </div>
+            ) : (
+            <div className="space-y-10">
+              {["TECHNICAL EVALUATION", "BEHAVIORAL / CULTURE FIT", "ONBOARDING / INTRO"].map((segment) => (
+                <div key={segment} className="space-y-4">
+                  <h4 className="text-sm font-bold text-[#64748B] tracking-wider uppercase border-b border-[#E2E8F0] pb-2">
+                    {segment}
+                  </h4>
                   
-                  {q.isEditing ? (
-                    <Textarea
-                      value={q.text}
-                      onChange={(e) => handleQuestionChange(idx, e.target.value)}
-                      className="text-[#0A1128] text-[15px] font-medium leading-relaxed bg-[#F8FAFC] border-[#E2E8F0] min-h-[100px] mb-3 focus:border-[#0066FF]"
-                      placeholder="Enter question text here..."
-                      autoFocus
-                    />
-                  ) : (
-                    <p className={`text-[#0A1128] text-[15px] font-medium leading-relaxed ${q.isNew && q.logic.includes('Insight') ? 'italic' : ''}`}>
-                      {q.isNew && q.logic.includes('Insight') ? `"${q.text}"` : q.text}
-                    </p>
-                  )}
-                  
-                  {q.logic && !q.isEditing && (
-                    <div className="mt-5 flex items-center gap-1.5 text-[#C2410C] bg-white">
-                      <Shield className="h-4 w-4" fill="#EA580C" stroke="white" />
-                      <span className="text-[11px] font-medium text-[#475569]">
-                        <span className="font-bold text-[#0A1128]">{q.category === 'EMERGING TECH' || q.category === 'CUSTOM QUESTION' ? 'Custom Logic:' : 'Logic:'}</span> {q.logic}
-                      </span>
-                    </div>
-                  )}
+                  {questions.map((q, idx) => q.category === segment && (
+                    <Card key={idx} className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7 relative group">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase">
+                          QUESTION {String(idx + 1).padStart(2, '0')}
+                        </div>
+                        
+                        {/* Action Buttons (Edit / Delete) */}
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => toggleEdit(idx)}
+                            className="p-1.5 text-[#64748B] hover:text-[#0066FF] hover:bg-[#EEF2FF] rounded-md transition-colors"
+                            title={q.isEditing ? "Save" : "Edit"}
+                          >
+                            {q.isEditing ? <Save className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteQuestion(idx)}
+                            className="p-1.5 text-[#64748B] hover:text-[#EF4444] hover:bg-[#FEF2F2] rounded-md transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {q.isEditing ? (
+                        <Textarea
+                          value={q.text}
+                          onChange={(e) => handleQuestionChange(idx, e.target.value)}
+                          className="text-[#0A1128] text-[15px] font-medium leading-relaxed bg-[#F8FAFC] border-[#E2E8F0] min-h-[100px] mb-3 focus:border-[#0066FF]"
+                          placeholder="Enter question text here..."
+                          autoFocus
+                        />
+                      ) : (
+                        <p className={`text-[#0A1128] text-[15px] font-medium leading-relaxed ${q.isNew && q.logic.includes('Insight') ? 'italic' : ''}`}>
+                          {q.isNew && q.logic.includes('Insight') ? `"${q.text}"` : q.text}
+                        </p>
+                      )}
+                      
+                      {q.logic && !q.isEditing && (
+                        <div className="mt-5 flex items-center gap-1.5 text-[#C2410C] bg-white">
+                          <Shield className="h-4 w-4" fill="#EA580C" stroke="white" />
+                          <span className="text-[11px] font-medium text-[#475569]">
+                            <span className="font-bold text-[#0A1128]">{q.isNew ? 'Custom Logic:' : 'Logic:'}</span> {q.logic}
+                          </span>
+                        </div>
+                      )}
 
-                  {q.isNew && !q.isEditing && q.logic.includes('Insight') && (
-                    <div className="absolute bottom-6 right-6 text-[10px] font-bold text-[#0066FF] tracking-widest uppercase">
-                      NEWLY GENERATED
-                    </div>
-                  )}
-                </Card>
+                      {q.isNew && !q.isEditing && q.logic.includes('Insight') && (
+                        <div className="absolute bottom-6 right-6 text-[10px] font-bold text-[#0066FF] tracking-widest uppercase">
+                          NEWLY GENERATED
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                  
+                  <button 
+                    onClick={() => handleAddQuestion(segment)}
+                    className="w-full py-4 border-2 border-dashed border-[#CBD5E1] hover:border-[#0066FF] rounded-xl flex items-center justify-center gap-2 text-[#475569] hover:text-[#0066FF] hover:bg-[#EEF2FF] transition-colors text-[13px] font-bold"
+                  >
+                    <Plus className="h-4 w-4" /> Add Question to {segment}
+                  </button>
+                </div>
               ))}
-
-              <button 
-                onClick={handleAddQuestion}
-                className="w-full py-5 border-2 border-dashed border-[#CBD5E1] hover:border-[#0066FF] rounded-2xl flex items-center justify-center gap-2 text-[#475569] hover:text-[#0066FF] hover:bg-[#EEF2FF] transition-colors text-[13px] font-bold"
-              >
-                <Plus className="h-5 w-5" /> Add Custom Question
-              </button>
             </div>
+            )}
           </div>
 
           {/* Right Column (Sidebar) */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-8">
             
             {/* Extracted Skills Card */}
             <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">

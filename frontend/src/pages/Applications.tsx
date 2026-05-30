@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   Loader2, Download, Search, Filter, Send, Mail, 
   CheckCircle2, Clock, Users, Sparkles, Plus, X, 
-  Copy, RefreshCw, ChevronRight, Check
+  Copy, RefreshCw, ChevronRight, Check, Menu
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -221,45 +221,68 @@ const Applications = () => {
           </Button>
         </div>
 
-        {/* Stats Summary Panel */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Applied</span>
-              <span className="text-2xl font-black text-[#0A1128]">{appliedCount}</span>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#E6F0FF] flex items-center justify-center text-[#0066FF]">
-              <Mail className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Invited</span>
-              <span className="text-2xl font-black text-[#0A1128]">{invitedCount}</span>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-[#10B981]">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Screened</span>
-              <span className="text-2xl font-black text-[#0A1128]">{interviewedCount}</span>
-            </div>
-          </Card>
-        </div>
-
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#0066FF]" />
+          <div className="animate-pulse space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4 h-24">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 w-16 bg-slate-200 rounded"></div>
+                    <div className="h-6 w-8 bg-slate-200 rounded"></div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm h-[500px]">
+              <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                <div className="h-10 w-full bg-slate-100 rounded-xl"></div>
+                <div className="h-10 w-[160px] bg-slate-100 rounded-xl"></div>
+                <div className="h-10 w-[140px] bg-slate-100 rounded-xl"></div>
+              </div>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="h-20 bg-slate-50 rounded-xl border border-slate-100"></div>
+                ))}
+              </div>
+            </Card>
           </div>
         ) : (
-          <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
+          <>
+            {/* Stats Summary Panel */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+              <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Applied</span>
+                  <span className="text-2xl font-black text-[#0A1128]">{appliedCount}</span>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#E6F0FF] flex items-center justify-center text-[#0066FF]">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Invited</span>
+                  <span className="text-2xl font-black text-[#0A1128]">{invitedCount}</span>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-[#10B981]">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Screened</span>
+                  <span className="text-2xl font-black text-[#0A1128]">{interviewedCount}</span>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
             {/* Filter controls row */}
             <div className="flex flex-col lg:flex-row gap-4 mb-6">
               <div className="relative flex-1">
@@ -467,6 +490,7 @@ const Applications = () => {
               </table>
             </div>
           </Card>
+          </>
         )}
       </main>
 

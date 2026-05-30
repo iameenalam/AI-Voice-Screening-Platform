@@ -8,7 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Copy, Send, CheckCircle2, ChevronRight,
-  Monitor, Smartphone
+  Monitor, Smartphone, Menu
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ const ComposeInvite = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Extract from state
   const candidateId = location.state?.candidateId || localStorage.getItem('currentCandidateId');
@@ -81,17 +82,27 @@ This will be a 45-minute technical discussion followed by a culture fit session.
       } else {
         toast.success(result.data.message || (isBatch ? "Invitations sent successfully!" : "Interview invitation sent successfully!"));
       }
-      navigate("/applications"); // Assuming applications is the Candidate Pool
+      navigate("/"); // Assuming applications is the Candidate Pool
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] flex font-sans">
-      <Sidebar />
+      <Sidebar 
+        isOpenMobile={isMobileMenuOpen} 
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+      />
 
       <main className="flex-1 overflow-y-auto h-screen relative flex flex-col">
         {/* Top Navbar */}
-        <nav className="bg-white border-b border-[#E2E8F0] px-8 py-4 flex items-center shadow-sm shrink-0">
+        <nav className="bg-white border-b border-[#E2E8F0] px-4 md:px-8 py-4 flex items-center justify-between shadow-sm shrink-0 gap-4">
+          <button 
+            className="md:hidden text-[#64748B] hover:text-[#0A1128]"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
           <div className="flex-1">
             <div className="relative max-w-xl">
               <span className="absolute left-3.5 top-2.5 text-[#94A3B8] text-xs">🔍</span>

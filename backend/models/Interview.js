@@ -25,7 +25,7 @@ const interviewSchema = new mongoose.Schema({
     type: Date,
   },
   questions: [{
-    type: String,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   }],
   status: {

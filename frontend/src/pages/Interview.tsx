@@ -20,7 +20,7 @@ const Interview = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timer, setTimer] = useState(0);
   const [sentiment, setSentiment] = useState(0.5);
-  const [questions, setQuestions] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const [currentResponse, setCurrentResponse] = useState("");
@@ -303,8 +303,9 @@ const Interview = () => {
     accumulatedTranscriptRef.current = "";
     setIsRecording(false);
     
-    await api.addTranscriptEntry(interviewId, 'AI', question, Date.now(), index);
-    speakQuestion(question);
+    const qText = typeof question === 'string' ? question : question.text;
+    await api.addTranscriptEntry(interviewId, 'AI', qText, Date.now(), index);
+    speakQuestion(qText);
   };
 
   const handleNextQuestion = async () => {
@@ -462,10 +463,10 @@ const Interview = () => {
           
           <div className="mb-8 text-left border-l-2 border-[#0066FF] pl-4">
             <span className="text-[10px] font-bold text-[#0066FF] uppercase tracking-widest block mb-1">
-              STAGE: Question {currentQuestion + 1} of {questions.length}
+              STAGE: {questions[currentQuestion]?.category || (currentQuestion < 3 ? "TECHNICAL EVALUATION" : currentQuestion < 6 ? "BEHAVIORAL FIT" : "ONBOARDING")}
             </span>
             <h1 className="text-xl md:text-2xl font-extrabold text-[#0A1128] leading-snug">
-              {questions[currentQuestion]}
+              {typeof questions[currentQuestion] === 'string' ? questions[currentQuestion] : questions[currentQuestion]?.text}
             </h1>
           </div>
 

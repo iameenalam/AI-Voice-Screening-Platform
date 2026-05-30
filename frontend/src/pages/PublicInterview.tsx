@@ -24,7 +24,7 @@ const PublicInterview = () => {
   const [candidateName, setCandidateName] = useState("Candidate");
   const [candidateEmail, setCandidateEmail] = useState("candidate@email.com");
   const [role, setRole] = useState("Senior Product Designer");
-  const [questions, setQuestions] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [interviewError, setInterviewError] = useState("");
   const [isExpired, setIsExpired] = useState(false);
@@ -97,8 +97,8 @@ const PublicInterview = () => {
       }
       
       setQuestions(result.data.questions || [
-        "How do you prioritize user needs when working with tight technical constraints?",
-        "Can you describe your experience with design systems?"
+        { text: "How do you prioritize user needs when working with tight technical constraints?", category: "TECHNICAL EVALUATION" },
+        { text: "Can you describe your experience with design systems?", category: "TECHNICAL EVALUATION" }
       ]);
       setCandidateName(result.data.candidateId?.name || 'Alex');
       setCandidateEmail(result.data.candidateId?.email || 'alex.design@career.com');
@@ -224,8 +224,9 @@ const PublicInterview = () => {
     setCurrentResponse("");
     accumulatedTranscriptRef.current = "";
     
-    await api.addPublicTranscriptEntry(token, 'AI', questions[index], Date.now(), index);
-    speakQuestion(questions[index]);
+    const qText = typeof questions[index] === 'string' ? questions[index] : questions[index].text;
+    await api.addPublicTranscriptEntry(token, 'AI', qText, Date.now(), index);
+    speakQuestion(qText);
   };
 
   const speakQuestion = (text: string) => {
@@ -554,13 +555,15 @@ const PublicInterview = () => {
             {/* Sidebar Indicator */}
             <div className="hidden sm:block w-32 shrink-0 border-l-[3px] border-[#0047b3] pl-4 self-start mt-2">
               <div className="text-[9px] font-bold text-[#0047b3] tracking-widest uppercase mb-1">STAGE</div>
-              <div className="text-[12px] font-extrabold text-[#0A1128]">Experience Evaluation</div>
+              <div className="text-[12px] font-extrabold text-[#0A1128] capitalize">
+                {questions[currentQuestion]?.category?.toLowerCase() || (currentQuestion < 3 ? "Technical Evaluation" : currentQuestion < 6 ? "Behavioral Fit" : "Onboarding")}
+              </div>
             </div>
 
             {/* Question Text */}
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#0A1128] leading-[1.2] tracking-tight mb-16">
-                {questions[currentQuestion]}
+                {typeof questions[currentQuestion] === 'string' ? questions[currentQuestion] : questions[currentQuestion]?.text}
               </h1>
 
               {/* Minimal Transcript Feedback */}

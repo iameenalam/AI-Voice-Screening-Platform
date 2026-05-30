@@ -4,11 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Upload, CheckCircle2, Loader2, Building, Briefcase, Mail, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
+import ReactMarkdown from 'react-markdown';
 
 const JOB_FIELDS = [
   "Software Engineering",
@@ -28,32 +29,41 @@ const Apply = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
-  const [companies, setCompanies] = useState<string[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
   const { startUpload } = useUploadThing("cvUploader");
 
   const [candidateData, setCandidateData] = useState({
     name: "",
     email: "",
-    appliedCompany: "",
-    jobField: "",
+    selectedJobId: "",
   });
 
+  const [searchParams] = useSearchParams();
+  const companyParam = searchParams.get('company');
+
   useEffect(() => {
-    const fetchCompanies = async () => {
+    const fetchJobs = async () => {
       try {
-        const result = await api.getCompanies();
+        setLoadingJobs(true);
+        const result = await api.getPublicJobs();
         if (result.error) {
-          console.error("Failed to fetch companies:", result.error);
-          toast.error(typeof result.error === 'string' ? result.error : (result.error as any).error || 'Failed to fetch companies');
+          console.error("Failed to fetch jobs:", result.error);
         } else if (result.data) {
-          setCompanies(result.data);
+          let loadedJobs = result.data;
+          if (companyParam) {
+            loadedJobs = loadedJobs.filter((j: any) => j.company === companyParam);
+          }
+          setJobs(loadedJobs);
         }
       } catch (err) {
-        console.error("Error fetching companies:", err);
+        console.error("Error fetching jobs:", err);
+      } finally {
+        setLoadingJobs(false);
       }
     };
-    fetchCompanies();
-  }, []);
+    fetchJobs();
+  }, [companyParam]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -67,7 +77,7 @@ const Apply = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!candidateData.name || !candidateData.email || !candidateData.appliedCompany || !candidateData.jobField || !cvFile) {
+    if (!candidateData.name || !candidateData.email || !candidateData.selectedJobId || !cvFile) {
       toast.error("Please fill in all required fields and upload your CV");
       return;
     }
@@ -81,12 +91,13 @@ const Apply = () => {
       }
       
       const fileUrl = (uploadRes[0] as any).ufsUrl || uploadRes[0].url;
+      const selectedJob = jobs.find(j => j._id === candidateData.selectedJobId);
 
       const applicationData = {
         name: candidateData.name,
         email: candidateData.email,
-        appliedCompany: candidateData.appliedCompany,
-        jobField: candidateData.jobField,
+        appliedCompany: selectedJob?.company || 'Unknown',
+        jobField: selectedJob?.title || 'General Application',
         cvUrl: fileUrl,
       };
 
@@ -110,12 +121,10 @@ const Apply = () => {
   // Thank you screen after successful submission
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+      <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
         
-        <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
-          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm relative">
+          <div className="w-full px-4 md:px-8 py-3 flex items-center justify-between">
             <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
               <Logo />
             </button>
@@ -123,7 +132,7 @@ const Apply = () => {
         </nav>
         
         <div className="flex-1 flex items-center justify-center relative z-10 py-12">
-          <div className="container mx-auto px-4 w-full">
+          <div className="w-full px-4 md:px-8">
             <div className="max-w-lg mx-auto text-center">
               <div className="animate-fade-in">
                 {/* Success icon with animation */}
@@ -143,7 +152,7 @@ const Apply = () => {
                   Your application has been submitted successfully.
                 </p>
                 
-                <Card className="p-6 bg-card/80 backdrop-blur-xl border-border/50 shadow-lg mb-8">
+                <Card className="p-6 bg-card backdrop-blur-xl border-border/50 shadow-lg mb-8">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 text-left">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -187,12 +196,10 @@ const Apply = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
+    <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
       
-      <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm relative">
+        <div className="w-full px-4 md:px-8 py-3 flex items-center justify-between">
           <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
             <Logo />
           </button>
@@ -200,62 +207,103 @@ const Apply = () => {
       </nav>
       
       <div className="flex-1 flex items-center justify-center relative z-10 py-12">
-        <div className="container mx-auto px-4 w-full">
-          <div className="max-w-2xl mx-auto">
+        <div className="w-full px-4 md:px-8">
+          <div className="w-full mx-auto">
             <div className="mb-6 md:mb-8 animate-fade-in text-center">
-              <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 text-[#0F172A]">
                 Submit Your Application
               </h1>
-              <p className="text-sm md:text-base text-muted-foreground">
+              <p className="text-sm md:text-base text-[#64748B]">
                 Apply for your dream role. Upload your CV and we'll review your application!
               </p>
             </div>
 
-            <Card className="p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 shadow-lg animate-fade-in">
+            <Card className="p-4 md:p-8 flex-1 bg-white border-0 shadow-none animate-fade-in">
               <form onSubmit={handleSubmit} className="space-y-6">
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Target Company</Label>
-                    <div className="relative">
-                      <Building className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                      <select 
-                        id="company"
-                        className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        value={candidateData.appliedCompany}
-                        onChange={(e) => setCandidateData({...candidateData, appliedCompany: e.target.value})}
-                        required
-                      >
-                        <option value="" disabled>Select Company</option>
-                        <option value="All">All Companies</option>
-                        {companies.map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-bold text-[#0F172A]">Available Roles</Label>
+                    {!loadingJobs && (
+                      <span className="text-xs text-[#64748B] font-medium bg-[#F8FAFC] px-2.5 py-1 rounded-full border border-[#E2E8F0]">
+                        {jobs.length} {jobs.length === 1 ? 'Opening' : 'Openings'}
+                      </span>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="field">Professional Field</Label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                      <select
-                        id="field"
-                        className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        value={candidateData.jobField}
-                        onChange={(e) => setCandidateData({...candidateData, jobField: e.target.value})}
-                        required
-                      >
-                        <option value="" disabled>Select Field</option>
-                        {JOB_FIELDS.map(f => (
-                          <option key={f} value={f}>{f}</option>
-                        ))}
-                      </select>
+                  
+                  {loadingJobs ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="p-4 rounded-xl border-2 border-[#E2E8F0] h-24 animate-pulse flex flex-col justify-between">
+                          <div className="h-4 bg-[#E2E8F0] rounded-md w-3/4"></div>
+                          <div className="h-3 bg-[#E2E8F0] rounded-md w-1/2"></div>
+                          <div className="h-4 bg-[#E2E8F0] rounded-md w-1/4 mt-1"></div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : jobs.length === 0 ? (
+                    <div className="p-8 text-center bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                      <Briefcase className="h-8 w-8 text-[#94A3B8] mx-auto mb-3" />
+                      <p className="text-sm text-[#475569] font-medium">No open roles available at the moment.</p>
+                      <p className="text-xs text-[#94A3B8] mt-1">Please check back later.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {jobs.map(job => (
+                        <div 
+                          key={job._id}
+                          onClick={() => setCandidateData({...candidateData, selectedJobId: job._id})}
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 text-left relative overflow-hidden group ${
+                            candidateData.selectedJobId === job._id 
+                              ? 'border-[#0066FF] bg-[#F0F5FF] shadow-sm' 
+                              : 'border-[#E2E8F0] hover:border-[#0066FF]/40 hover:bg-[#F8FAFC]'
+                          }`}
+                        >
+                          {candidateData.selectedJobId === job._id && (
+                            <div className="absolute top-0 right-0 w-12 h-12 flex items-start justify-end p-2 pointer-events-none">
+                              <div className="w-5 h-5 bg-[#0066FF] rounded-full flex items-center justify-center text-white">
+                                <CheckCircle2 className="h-3 w-3" />
+                              </div>
+                            </div>
+                          )}
+                          <h3 className={`font-bold mb-1 line-clamp-1 pr-6 ${candidateData.selectedJobId === job._id ? 'text-[#0066FF]' : 'text-[#0F172A] group-hover:text-[#0066FF]'}`}>
+                            {job.title}
+                          </h3>
+                          <div className="flex items-center gap-2 text-xs text-[#64748B] font-medium">
+                            <Building className="h-3.5 w-3.5" /> 
+                            <span className="line-clamp-1">{job.company || 'Vocalent'}</span>
+                          </div>
+                          {job.department && (
+                            <div className="mt-3">
+                              <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                candidateData.selectedJobId === job._id ? 'bg-[#0066FF]/10 text-[#0066FF]' : 'bg-[#F1F5F9] text-[#64748B]'
+                              }`}>
+                                {job.department}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Always visible candidate details */}
+                {/* Selected Job Description Preview */}
+                {candidateData.selectedJobId && (
+                  <div className="mt-8 animate-fade-in">
+                   
+                    <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground">
+                      <ReactMarkdown>
+                        {jobs.find(j => j._id === candidateData.selectedJobId)?.description || 'No description provided for this role.'}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {/* Application Form Fields */}
+                {candidateData.selectedJobId && (
+                  <div className="space-y-6 animate-fade-in">
+                    {/* Candidate Details */}
                 <div className="space-y-4 pt-4 border-t border-border">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -334,7 +382,9 @@ const Apply = () => {
                   ) : (
                     "Submit Application"
                   )}
-                </Button>
+                    </Button>
+                  </div>
+                )}
               </form>
             </Card>
           </div>

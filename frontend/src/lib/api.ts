@@ -248,6 +248,35 @@ class ApiClient {
       recentInterviews: any[];
     }>('/dashboard/stats');
   }
+  
+  // Jobs
+  async getPublicJobs() {
+    return this.request<any[]>('/jobs/public');
+  }
+
+  async getJobs() {
+    return this.request<any[]>('/jobs');
+  }
+
+  async createJob(data: any) {
+    return this.request<any>('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateJob(id: string, data: any) {
+    return this.request<any>(`/jobs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteJob(id: string) {
+    return this.request<any>(`/jobs/${id}`, {
+      method: 'DELETE',
+    });
+  }
 
   // Interview Invitations
   async sendInterviewInvite(candidateId: string, questions: string[], customSubject?: string, customMessage?: string) {

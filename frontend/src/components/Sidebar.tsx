@@ -26,20 +26,25 @@ export const Sidebar = ({ onMobileToggle, isOpenMobile = false }: SidebarProps) 
       path: "/dashboard"
     },
     {
+      label: "Jobs",
+      icon: Briefcase,
+      path: "/jobs"
+    },
+    {
       label: "Candidates",
       icon: Users,
       path: "/candidate-pool"
     },
-    {
-      label: "Interviews",
-      icon: CheckSquare,
-      path: "/candidate-pool" // Or point to interviews
-    },
-    {
-      label: "Analytics",
-      icon: BarChart,
-      path: "/dashboard"
-    }
+    // {
+    //   label: "Interviews",
+    //   icon: CheckSquare,
+    //   path: "/candidate-pool" // Or point to interviews
+    // },
+    // {
+    //   label: "Analytics",
+    //   icon: BarChart,
+    //   path: "/dashboard"
+    // }
   ];
 
   const handleLogout = () => {
@@ -48,23 +53,46 @@ export const Sidebar = ({ onMobileToggle, isOpenMobile = false }: SidebarProps) 
   };
 
   return (
-    <aside className={`${isCollapsed ? 'w-20 items-center' : 'w-64'} bg-white border-r border-[#E2E8F0] h-screen sticky top-0 flex flex-col justify-between p-6 z-40 select-none transition-all duration-300`}>
-      <div className="space-y-8 w-full">
-        {/* Header/Logo */}
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between pl-2'} h-8`}>
-          {!isCollapsed && (
-            <button onClick={() => navigate("/")} className="hover:opacity-85 transition-opacity">
-              <Logo />
+    <>
+      {/* Mobile Backdrop */}
+      {isOpenMobile && (
+        <div 
+          className="fixed inset-0 bg-[#0A1128]/40 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={onMobileToggle}
+        />
+      )}
+      
+      <aside className={`
+        fixed md:sticky top-0 left-0 h-screen z-50 bg-white border-r border-[#E2E8F0] flex flex-col justify-between p-6 select-none transition-all duration-300
+        ${isCollapsed ? 'md:w-20 md:items-center' : 'w-64'}
+        ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="space-y-8 w-full">
+          {/* Header/Logo */}
+          <div className={`flex items-center ${isCollapsed ? 'md:justify-center' : 'justify-between pl-2'} h-8 relative`}>
+            {(!isCollapsed || isOpenMobile) && (
+              <button onClick={() => navigate("/")} className="hover:opacity-85 transition-opacity">
+                <Logo />
+              </button>
+            )}
+            
+            {/* Desktop Collapse Toggle */}
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)} 
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              className="hidden md:flex w-8 h-8 rounded-lg text-[#64748B] hover:text-[#0A1128] hover:bg-[#F8FAFC] items-center justify-center transition-colors absolute right-0"
+            >
+              <Menu className="h-5 w-5 shrink-0" />
             </button>
-          )}
-          <button 
-            onClick={() => setIsCollapsed(!isCollapsed)} 
-            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            className="w-8 h-8 rounded-lg text-[#64748B] hover:text-[#0A1128] hover:bg-[#F8FAFC] flex items-center justify-center transition-colors"
-          >
-            <Menu className="h-5 w-5 shrink-0" />
-          </button>
-        </div>
+
+            {/* Mobile Close Toggle */}
+            <button 
+              onClick={onMobileToggle}
+              className="md:hidden w-8 h-8 rounded-lg text-[#64748B] hover:text-[#0A1128] hover:bg-[#F8FAFC] flex items-center justify-center transition-colors absolute right-0"
+            >
+              <X className="h-5 w-5 shrink-0" />
+            </button>
+          </div>
 
         {/* Navigation List */}
         <nav className="space-y-1">
@@ -141,5 +169,6 @@ export const Sidebar = ({ onMobileToggle, isOpenMobile = false }: SidebarProps) 
         )}
       </div>
     </aside>
+    </>
   );
 };
