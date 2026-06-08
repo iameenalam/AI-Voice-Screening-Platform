@@ -126,15 +126,7 @@ export const Sidebar = ({ onMobileToggle, isOpenMobile = false }: SidebarProps) 
         
 
 
-        {/* Settings button above profile */}
-        <button 
-          onClick={() => navigate("/dashboard")} 
-          title={isCollapsed ? "Settings" : undefined}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-[#64748B] hover:text-[#0A1128] hover:bg-[#F8FAFC] transition-all ${isCollapsed ? 'justify-center w-12 h-12' : 'w-full'}`}
-        >
-          <Settings className="h-5 w-5 shrink-0 text-[#94A3B8]" />
-          {!isCollapsed && <span>Settings</span>}
-        </button>
+
 
         {/* User Profile Card */}
         {isCollapsed ? (

@@ -20,6 +20,7 @@ const HOST_URL = API_BASE_URL.replace('/api', '');
 const Applications = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [filteredCandidates, setFilteredCandidates] = useState<any[]>([]);
   const [filterField, setFilterField] = useState<string>("All");
@@ -201,9 +202,24 @@ const Applications = () => {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0F172A] flex font-sans">
-      <Sidebar />
+      <Sidebar 
+        isOpenMobile={isMobileMenuOpen} 
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+      />
 
-      <main className="flex-1 overflow-y-auto h-screen p-8 lg:p-12">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top Header Bar matching mock */}
+        <header className="bg-white border-b border-[#E2E8F0] px-4 py-4 flex items-center justify-between shrink-0 gap-4 md:hidden">
+          <button 
+            className="text-[#64748B] hover:text-[#0A1128]"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        </header>
+
+        {/* Scrollable Container */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-[#0A1128]">
@@ -215,7 +231,7 @@ const Applications = () => {
           </div>
           <Button
             onClick={() => navigate("/upload-cv")}
-            className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm"
+            className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm flex items-center justify-center"
           >
             Add New Candidate
           </Button>
@@ -492,6 +508,7 @@ const Applications = () => {
           </Card>
           </>
         )}
+        </div>
       </main>
 
     </div>

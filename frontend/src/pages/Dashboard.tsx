@@ -78,34 +78,17 @@ const Dashboard = () => {
       {/* Main Panel Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Header Bar matching mock */}
-        <header className="bg-white border-b border-[#E2E8F0] px-4 md:px-8 py-4 flex items-center justify-between shrink-0 gap-4">
+        <header className="bg-white border-b border-[#E2E8F0] px-4 py-4 flex items-center justify-between shrink-0 gap-4 md:hidden">
           <button 
-            className="md:hidden text-[#64748B] hover:text-[#0A1128]"
+            className="text-[#64748B] hover:text-[#0A1128]"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </button>
-          
-          <div className="relative w-full max-w-xl">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-[#94A3B8]" />
-            <input
-              type="text"
-              placeholder="Search candidates, jobs, or reports..."
-              className="w-full bg-[#F1F5F9]/60 border border-transparent rounded-xl pl-10 pr-4 py-2 text-xs font-medium placeholder:text-[#94A3B8] focus:outline-none focus:bg-white focus:border-[#0066FF] transition-all"
-            />
-          </div>
-
-          <div className="flex items-center gap-4 text-[#64748B] pl-4">
-            <div className="relative cursor-pointer hover:text-[#0A1128] transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white" />
-            </div>
-            <HelpCircle className="h-5 w-5 cursor-pointer hover:text-[#0A1128] transition-colors" />
-          </div>
         </header>
 
         {/* Scrollable Container */}
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
           {loading ? (
             <div className="space-y-8 animate-pulse">
               <div className="space-y-3">
@@ -146,7 +129,7 @@ const Dashboard = () => {
                 <Button
                   onClick={handleCopyLink}
                   variant="outline"
-                  className="mt-4 border-[#E2E8F0] text-[#0A1128] font-bold rounded-xl text-xs shadow-sm hover:bg-[#F8FAFC]"
+                  className="mt-4 w-full sm:w-auto justify-center border-[#E2E8F0] text-[#0A1128] font-bold rounded-xl text-xs shadow-sm hover:bg-[#F8FAFC]"
                 >
                   <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
                   Copy Public Apply Link
@@ -220,17 +203,17 @@ const Dashboard = () => {
                       Upload a single CV or a batch of resumes to let Vocalent's AI engine automatically parse, categorize, and rank them for you.
                     </p>
 
-                    <div className="flex gap-3 w-full justify-center">
+                    <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
                       <Button
                         onClick={() => navigate("/upload-cv")}
-                        className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-xs px-5 py-4 rounded-xl shadow-md flex items-center gap-1.5"
+                        className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-xs px-5 py-4 rounded-xl shadow-md flex items-center justify-center gap-1.5"
                       >
                         <UploadCloud className="h-4 w-4" />
                         Upload CV
                       </Button>
                       <Button
                         onClick={() => navigate("/candidate-pool")}
-                        className="bg-[#EBF1FF] hover:bg-[#D6E4FF] text-[#0066FF] font-bold text-xs px-5 py-4 rounded-xl"
+                        className="w-full sm:w-auto bg-[#EBF1FF] hover:bg-[#D6E4FF] text-[#0066FF] font-bold text-xs px-5 py-4 rounded-xl"
                       >
                         Browse Directory
                       </Button>
@@ -339,18 +322,18 @@ const Dashboard = () => {
                     Screening platform activity and candidate metrics command center.
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <Button
                     onClick={handleCopyLink}
                     variant="outline"
-                    className="border-[#E2E8F0] text-[#0A1128] font-bold py-6 px-4 rounded-xl text-sm shadow-sm hover:bg-[#F8FAFC]"
+                    className="w-full sm:w-auto border-[#E2E8F0] text-[#0A1128] font-bold py-6 px-4 rounded-xl text-sm shadow-sm hover:bg-[#F8FAFC] flex items-center justify-center"
                   >
                     <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
                     Copy Apply Link
                   </Button>
                   <Button
                     onClick={() => navigate("/upload-cv")}
-                    className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm"
+                    className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm flex items-center justify-center"
                   >
                     Start New Screening
                   </Button>
