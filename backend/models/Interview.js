@@ -25,7 +25,7 @@ const interviewSchema = new mongoose.Schema({
     type: Date,
   },
   questions: [{
-    type: String,
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   }],
   status: {
@@ -88,8 +88,7 @@ const interviewSchema = new mongoose.Schema({
   },
 });
 
-// Index for fast token lookups
-interviewSchema.index({ interviewToken: 1 });
+
 
 export default mongoose.model('Interview', interviewSchema);
 

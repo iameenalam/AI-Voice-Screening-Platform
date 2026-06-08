@@ -755,7 +755,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // Send interview invitation to a candidate
 router.post('/send-interview-invite', authenticate, async (req, res) => {
   try {
-    const { candidateId, questions } = req.body;
+    const { candidateId, questions, customSubject, customMessage } = req.body;
 
     if (!candidateId || !questions || !Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ error: 'Candidate ID and questions array are required' });
@@ -815,6 +815,8 @@ router.post('/send-interview-invite', authenticate, async (req, res) => {
         companyName,
         jobField: candidate.jobField || candidate.role || '',
         expiresAt,
+        customSubject,
+        customMessage
       });
 
       console.log(`✅ Interview invitation sent to ${candidate.email}`);
@@ -912,7 +914,7 @@ router.post('/resend-interview-email', authenticate, async (req, res) => {
 // Batch send interview invitations
 router.post('/batch-send-invites', authenticate, async (req, res) => {
   try {
-    const { candidateIds, questions } = req.body;
+    const { candidateIds, questions, customSubject, customMessage } = req.body;
 
     if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
       return res.status(400).json({ error: 'candidateIds array is required' });
@@ -977,6 +979,8 @@ router.post('/batch-send-invites', authenticate, async (req, res) => {
             companyName,
             jobField: candidate.jobField || candidate.role || '',
             expiresAt,
+            customSubject,
+            customMessage
           });
           results.push({ candidateId, success: true, email: candidate.email });
         } catch (emailErr) {

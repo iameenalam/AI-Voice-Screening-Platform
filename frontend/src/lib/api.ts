@@ -248,19 +248,48 @@ class ApiClient {
       recentInterviews: any[];
     }>('/dashboard/stats');
   }
+  
+  // Jobs
+  async getPublicJobs() {
+    return this.request<any[]>('/jobs/public');
+  }
 
-  // Interview Invitations
-  async sendInterviewInvite(candidateId: string, questions: string[]) {
-    return this.request<any>('/candidates/send-interview-invite', {
+  async getJobs() {
+    return this.request<any[]>('/jobs');
+  }
+
+  async createJob(data: any) {
+    return this.request<any>('/jobs', {
       method: 'POST',
-      body: JSON.stringify({ candidateId, questions }),
+      body: JSON.stringify(data),
     });
   }
 
-  async batchSendInvites(candidateIds: string[], questions: string[]) {
+  async updateJob(id: string, data: any) {
+    return this.request<any>(`/jobs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteJob(id: string) {
+    return this.request<any>(`/jobs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Interview Invitations
+  async sendInterviewInvite(candidateId: string, questions: string[], customSubject?: string, customMessage?: string) {
+    return this.request<any>('/candidates/send-interview-invite', {
+      method: 'POST',
+      body: JSON.stringify({ candidateId, questions, customSubject, customMessage }),
+    });
+  }
+
+  async batchSendInvites(candidateIds: string[], questions: string[], customSubject?: string, customMessage?: string) {
     return this.request<any>('/candidates/batch-send-invites', {
       method: 'POST',
-      body: JSON.stringify({ candidateIds, questions }),
+      body: JSON.stringify({ candidateIds, questions, customSubject, customMessage }),
     });
   }
 

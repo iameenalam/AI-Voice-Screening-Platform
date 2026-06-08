@@ -39,7 +39,7 @@ function formatExpiryDate(date) {
 /**
  * Send an interview invitation email to a candidate
  */
-export async function sendInterviewInvitation({ to, candidateName, interviewLink, companyName, jobField, expiresAt }) {
+export async function sendInterviewInvitation({ to, candidateName, interviewLink, companyName, jobField, expiresAt, customSubject, customMessage }) {
   const transporter = createTransporter();
   
   if (!transporter) {
@@ -49,6 +49,32 @@ export async function sendInterviewInvitation({ to, candidateName, interviewLink
 
   const fromName = process.env.SMTP_FROM_NAME || 'Vocalent AI Screening';
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+
+  const defaultSubject = `You're Invited to Interview!${companyName ? ` - ${companyName}` : ''}`;
+  const subject = customSubject || defaultSubject;
+
+  let messageHtml = '';
+  if (customMessage) {
+    // Convert newlines to breaks
+    const formatted = customMessage.replace(/\n/g, '<br/>');
+    messageHtml = `
+      <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6; white-space: pre-wrap;">
+        ${formatted}
+      </p>
+    `;
+  } else {
+    messageHtml = `
+      <p style="margin: 0 0 16px; font-size: 16px; color: #18181b; line-height: 1.6;">
+        Hello <strong>${candidateName}</strong>,
+      </p>
+      <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6;">
+        We're excited to inform you that your application${companyName ? ` at <strong>${companyName}</strong>` : ''}${jobField ? ` for <strong>${jobField}</strong>` : ''} has been reviewed, and we'd like to invite you to complete an AI-powered voice interview.
+      </p>
+      <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6;">
+        The interview consists of a few questions relevant to the role. You'll respond using your microphone, and the process typically takes <strong>10–15 minutes</strong>.
+      </p>
+    `;
+  }
 
   const expiryText = expiresAt ? formatExpiryDate(expiresAt) : '';
   const expiryRow = expiryText ? `
@@ -70,7 +96,7 @@ export async function sendInterviewInvitation({ to, candidateName, interviewLink
   const mailOptions = {
     from: `"${fromName}" <${fromEmail}>`,
     to,
-    subject: `You're Invited to Interview!${companyName ? ` - ${companyName}` : ''}`,
+    subject,
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -107,15 +133,7 @@ export async function sendInterviewInvitation({ to, candidateName, interviewLink
                       <!-- Body -->
                       <tr>
                         <td style="padding: 28px 24px 8px;">
-                          <p style="margin: 0 0 16px; font-size: 16px; color: #18181b; line-height: 1.6;">
-                            Hello <strong>${candidateName}</strong>,
-                          </p>
-                          <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6;">
-                            We're excited to inform you that your application${companyName ? ` at <strong>${companyName}</strong>` : ''}${jobField ? ` for <strong>${jobField}</strong>` : ''} has been reviewed, and we'd like to invite you to complete an AI-powered voice interview.
-                          </p>
-                          <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6;">
-                            The interview consists of a few questions relevant to the role. You'll respond using your microphone, and the process typically takes <strong>10–15 minutes</strong>.
-                          </p>
+                          ${messageHtml}
                         </td>
                       </tr>
 
