@@ -124,7 +124,9 @@ const UploadCV = () => {
       navigate("/screening-setup", { 
         state: { 
           candidateId: data._id, 
-          role: fullRole || candidateData.role
+          role: fullRole || candidateData.role,
+          name: candidateData.name || data.name,
+          cvUrl: cvUrl || data.cvUrl
         } 
       });
     }

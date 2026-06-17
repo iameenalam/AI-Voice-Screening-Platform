@@ -5,10 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   ArrowLeft, MapPin, Briefcase, ExternalLink, 
-  RefreshCw, Shield, Send, Check, Trash2, Edit2, Plus, Save
+  RefreshCw, Shield, Send, Check, Trash2, Edit2, Plus, Save, Menu
 } from "lucide-react";
+import { Sidebar } from "@/components/Sidebar";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const HOST_URL = API_BASE_URL.replace('/api', '');
 
 type Question = {
   category: string;
@@ -23,12 +27,29 @@ const ScreeningSetup = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const candidateId = location.state?.candidateId || localStorage.getItem('currentCandidateId');
   const candidateIds = location.state?.candidateIds;
   const isBatch = location.state?.isBatch;
-  const role = location.state?.role || 'NaN';
-  const name = location.state?.name || 'NaN';
+
+  const [role, setRole] = useState(location.state?.role || 'NaN');
+  const [name, setName] = useState(location.state?.name || 'NaN');
+  const [cvUrl, setCvUrl] = useState(location.state?.cvUrl || '');
+
+  useEffect(() => {
+    if (candidateId && !isBatch) {
+      api.getCandidate(candidateId).then(result => {
+        if (result.data) {
+          if (result.data.name) setName(result.data.name);
+          if (result.data.role || result.data.jobField) {
+            setRole(result.data.role || result.data.jobField);
+          }
+          if (result.data.cvUrl) setCvUrl(result.data.cvUrl);
+        }
+      });
+    }
+  }, [candidateId, isBatch]);
 
   const defaultQuestions: Question[] = [
     { category: "TECHNICAL EVALUATION", text: `Can you describe your experience and technical proficiency relevant to the ${role} role?`, logic: "Standard technical screen." },
@@ -135,50 +156,70 @@ const ScreeningSetup = () => {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] font-sans pb-12">
-      {/* Top Navbar Area */}
-      <nav className="bg-white border-b border-[#E2E8F0] px-8 py-3 flex items-center shadow-sm">
-        <button onClick={() => navigate(-1)} className="text-[#64748B] hover:text-[#0A1128] mr-6">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1">
-          <div className="relative max-w-xl">
-            <span className="absolute left-3.5 top-2.5 text-[#94A3B8] text-xs">🔍</span>
-            <input
-              type="text"
-              placeholder="Search candidate records..."
-              className="w-full bg-[#F8FAFC] border-none rounded-lg pl-9 pr-4 py-2 text-[13px] font-medium placeholder:text-[#94A3B8] focus:outline-none focus:ring-1 focus:ring-[#E2E8F0]"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-4 text-[#64748B]">
-          <span className="cursor-pointer hover:text-[#0A1128]">🔔</span>
-          <div className="w-8 h-8 rounded-full bg-[#0066FF] border-2 border-white shadow-sm overflow-hidden flex items-center justify-center text-white text-xs">
-            JD
-          </div>
-        </div>
-      </nav>
+  const handleViewPortfolio = () => {
+    if (!cvUrl) {
+      toast.error("No CV/Resume available for this candidate");
+      return;
+    }
+    const isAbsoluteUrl = cvUrl.startsWith('http://') || cvUrl.startsWith('https://');
+    const targetUrl = isAbsoluteUrl ? cvUrl : `${HOST_URL}${cvUrl}`;
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
 
-      <div className="max-w-[1100px] mx-auto px-6 mt-10">
-        {/* Candidate Profile Header */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-10 gap-4">
-          <div>
-            <h1 className="text-4xl font-extrabold text-[#0A1128] tracking-tight">{name}</h1>
-            <h2 className="text-xl font-bold text-[#0066FF] mt-1">{role}</h2>
-            <div className="flex items-center gap-3 mt-4">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                <MapPin className="h-3.5 w-3.5" /> SAN FRANCISCO, CA
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                <Briefcase className="h-3.5 w-3.5" /> 8+ YEARS EXP.
-              </div>
-            </div>
-          </div>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-[#E6F0FF] text-[#0066FF] hover:bg-[#D6E4FF] rounded-xl text-[13px] font-bold transition-colors shadow-sm">
-            <ExternalLink className="h-4 w-4" /> View Portfolio
+  return (
+    <div className="min-h-screen bg-[#F8F9FA] text-[#0F172A] flex font-sans w-full">
+      {/* Sidebar Component */}
+      <Sidebar 
+        isOpenMobile={isMobileMenuOpen} 
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+      />
+
+      {/* Main Panel Content */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top Header Bar for Mobile */}
+        <header className="bg-white border-b border-[#E2E8F0] px-4 py-4 flex items-center justify-between shrink-0 gap-4 md:hidden">
+          <button 
+            className="text-[#64748B] hover:text-[#0A1128]"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
           </button>
-        </div>
+        </header>
+
+        {/* Scrollable Container */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
+          <div className="max-w-[1100px] mx-auto">
+            {/* Back Button */}
+            <button 
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-1.5 text-[#64748B] hover:text-[#0A1128] font-bold text-xs uppercase tracking-wider mb-8"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to candidates
+            </button>
+
+            {/* Candidate Profile Header */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between mb-10 gap-4">
+              <div>
+                <h1 className="text-4xl font-extrabold text-[#0A1128] tracking-tight">{name}</h1>
+                <h2 className="text-xl font-bold text-[#0066FF] mt-1">{role}</h2>
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
+                    <MapPin className="h-3.5 w-3.5" /> SAN FRANCISCO, CA
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
+                    <Briefcase className="h-3.5 w-3.5" /> 8+ YEARS EXP.
+                  </div>
+                </div>
+              </div>
+              {!isBatch && (
+                <button 
+                  onClick={handleViewPortfolio}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#E6F0FF] text-[#0066FF] hover:bg-[#D6E4FF] rounded-xl text-[13px] font-bold transition-colors shadow-sm"
+                >
+                  <ExternalLink className="h-4 w-4" /> View Portfolio
+                </button>
+              )}
+            </div>
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -359,10 +400,12 @@ const ScreeningSetup = () => {
               </button>
             </div>
 
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
+  </div>
   );
 };
 

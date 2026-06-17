@@ -157,7 +157,8 @@ const Applications = () => {
         state: {
           candidateId: candidate._id,
           role: candidate.jobField || candidate.role || 'Role Undefined',
-          name: candidate.name || 'Candidate'
+          name: candidate.name || 'Candidate',
+          cvUrl: candidate.cvUrl
         }
       });
     } else {
