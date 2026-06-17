@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Sidebar } from "@/components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import { 
-  UploadCloud, CheckCircle2, ArrowRight, X, FileText, 
-  Sparkles, Shield, Check, Paperclip 
+  UploadCloud, CheckCircle2, ArrowRight, FileText, 
+  Sparkles, Shield, Check, Paperclip, Menu, ArrowLeft
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { useUploadThing } from "@/lib/uploadthing";
 
 const UploadCV = () => {
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [extracted, setExtracted] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadFileName, setUploadFileName] = useState("");
@@ -28,6 +29,22 @@ const UploadCV = () => {
   const [fullRole, setFullRole] = useState("");
   const [showFullRole, setShowFullRole] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
+  const [recentCandidates, setRecentCandidates] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const result = await api.getCandidates();
+        if (result.data) {
+          const recruiterUploads = result.data.filter((c: any) => c.isExternal === true);
+          setRecentCandidates(recruiterUploads.slice(0, 4));
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent candidates");
+      }
+    };
+    fetchRecent();
+  }, []);
 
   const { startUpload } = useUploadThing("cvUploader");
 
@@ -133,27 +150,46 @@ const UploadCV = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] text-[#0F172A] flex font-sans">
-      <Sidebar />
+    <div className="min-h-screen bg-[#F8F9FA] text-[#0F172A] flex font-sans">
+      <Sidebar
+        isOpenMobile={isMobileMenuOpen}
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      />
 
-      <main className="flex-1 overflow-y-auto h-screen flex items-center justify-center p-4 relative">
-        <div className="w-full max-w-[550px]">
-          <Card className="bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            {!uploading && !extracted && (
-              <>
-                {/* Header Image 1 */}
-                <div className="p-8 pb-6 flex justify-between items-start">
-                  <div>
-                    <h2 className="text-xl font-bold text-[#0A1128]">Bulk CV Upload</h2>
-                    <p className="text-[13px] text-[#64748B] mt-1 font-medium">Enhance your candidate pool with AI-driven CV parsing.</p>
-                  </div>
-                  <button onClick={() => navigate('/dashboard')} className="text-[#94A3B8] hover:text-[#0A1128] transition-colors">
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Mobile Header */}
+        <header className="bg-white border-b border-[#E2E8F0] px-4 py-4 flex items-center justify-between shrink-0 gap-4 md:hidden">
+          <button
+            className="text-[#64748B] hover:text-[#0A1128]"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        </header>
+
+        {/* Scrollable Container */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
+          <div className="max-w-[1100px] mx-auto">
+            {/* Back Button */}
+            <button 
+              onClick={() => navigate('/candidate-pool')} 
+              className="flex items-center gap-1.5 text-[#64748B] hover:text-[#0A1128] font-bold text-xs uppercase tracking-wider mb-8"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to candidates
+            </button>
+
+            {/* Page Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-black text-[#0A1128]">Add Candidates</h1>
+              <p className="text-xs text-[#64748B] font-semibold mt-1">Upload CVs and let Vocalent AI parse, extract, and rank candidates automatically.</p>
+            </div>
+
+            {/* Upload Card */}
+            <Card className="bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              {!uploading && !extracted && (
+                <>
                 {/* Dropzone Image 1 */}
-                <div className="px-8">
+                <div className="p-8">
                   <Label htmlFor="cv-upload" className="cursor-pointer block border-2 border-dashed border-[#E2E8F0] hover:border-[#0066FF] hover:bg-[#F8FAFC] transition-colors rounded-2xl p-8 flex flex-col items-center justify-center text-center">
                     <div className="w-12 h-12 bg-[#EEF2FF] rounded-xl flex items-center justify-center text-[#0066FF] mb-4">
                       <UploadCloud className="h-6 w-6" />
@@ -167,60 +203,28 @@ const UploadCV = () => {
                   </Label>
                 </div>
 
-                {/* Recently Uploaded Image 1 */}
-                <div className="px-8 mt-8 mb-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider">Recently Uploaded</span>
-                    <span className="text-[11px] font-bold text-[#0066FF]">4 files ready</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
-                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
-                        <FileText className="h-4 w-4 text-[#0066FF]" />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-bold text-[#0A1128]">Alex_Chen_Senior_Dev.pdf</div>
-                        <div className="text-[11px] text-[#64748B] font-medium mt-0.5">1.2 MB • Processing Match Score...</div>
-                      </div>
+                  {/* Recently Uploaded */}
+                  {recentCandidates.length > 0 && (
+                  <div className="px-8 mt-8 mb-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-[11px] font-bold text-[#475569] uppercase tracking-wider">Recently Uploaded</span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
-                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
-                        <FileText className="h-4 w-4 text-[#0066FF]" />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-bold text-[#0A1128]">Sarah_Miller_UX_Resume.docx</div>
-                        <div className="text-[11px] text-[#64748B] font-medium mt-0.5">840 KB • Metadata verified</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-[#FFF7ED] rounded-xl border border-[#FFEDD5]">
-                      <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
-                        <Sparkles className="h-4 w-4 text-[#EA580C]" />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-bold text-[#0A1128] flex items-center gap-2">
-                          Marketing_Lead_2024.pdf <div className="w-1.5 h-1.5 rounded-full bg-[#BFDBFE]"></div>
+                    <div className="space-y-2">
+                      {recentCandidates.map((c, i) => (
+                        <div key={c._id || i} className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
+                          <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm">
+                            <FileText className="h-4 w-4 text-[#0066FF]" />
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-bold text-[#0A1128]">{c.name || 'Unknown'} - {c.role || c.jobField || 'Candidate'}</div>
+                            <div className="text-[11px] text-[#64748B] font-medium mt-0.5">{c.email || 'No email provided'}</div>
+                          </div>
                         </div>
-                        <div className="text-[11px] font-bold text-[#C2410C] mt-0.5">Vocalent AI: Top 5% Candidate detected</div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </div>
+                  )}
 
-                {/* Footer Image 1 */}
-                <div className="px-8 py-5 mt-4 flex items-center justify-between border-t border-[#F1F5F9]">
-                  <div className="flex items-center gap-2 text-[11px] text-[#64748B] font-medium">
-                    <Shield className="h-4 w-4 text-[#94A3B8]" />
-                    All files are encrypted and processed securely.
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/dashboard')} className="text-[13px] font-bold text-[#0A1128] px-4 py-2 hover:bg-[#F1F5F9] rounded-lg transition-colors">
-                      Cancel
-                    </button>
-                    <Label htmlFor="cv-upload" className="text-[13px] font-bold text-white bg-[#0066FF] hover:bg-[#0052CC] px-6 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer">
-                      Upload Files
-                    </Label>
-                  </div>
-                </div>
               </>
             )}
 
@@ -232,50 +236,9 @@ const UploadCV = () => {
                     <h2 className="text-xl font-bold text-[#0A1128]">Upload Progress</h2>
                     <p className="text-[13px] text-[#64748B] mt-1 font-medium">Processing candidate profiles and documentation.</p>
                   </div>
-                  <button className="text-[#94A3B8] hover:text-[#0A1128] transition-colors">
-                    <X className="h-5 w-5" />
-                  </button>
                 </div>
 
                 <div className="px-8 space-y-4">
-                  {/* Completed 1 */}
-                  <div className="p-4 bg-white border-2 border-[#0066FF] rounded-xl relative overflow-hidden shadow-sm">
-                    <div className="flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
-                          <FileText className="h-5 w-5 text-[#0066FF]" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-[#0A1128]">resume_ahmed_khan.pdf</div>
-                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">1.2 MB • <span className="text-[#0A1128]">COMPLETED</span></div>
-                        </div>
-                      </div>
-                      <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-sm">
-                        <Check className="h-3 w-3" strokeWidth={3} />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 h-1 bg-[#0066FF] w-full"></div>
-                  </div>
-
-                  {/* Completed 2 */}
-                  <div className="p-4 bg-white border-2 border-[#0066FF] rounded-xl relative overflow-hidden shadow-sm">
-                    <div className="flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
-                          <FileText className="h-5 w-5 text-[#0066FF]" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-[#0A1128]">cv_sarah_ali.docx</div>
-                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">840 KB • <span className="text-[#0A1128]">COMPLETED</span></div>
-                        </div>
-                      </div>
-                      <div className="w-5 h-5 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-sm">
-                        <Check className="h-3 w-3" strokeWidth={3} />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 h-1 bg-[#0066FF] w-full"></div>
-                  </div>
-
                   {/* Uploading */}
                   <div className="p-4 bg-white border border-[#E2E8F0] rounded-xl relative overflow-hidden">
                     <div className="flex items-center justify-between relative z-10">
@@ -284,33 +247,14 @@ const UploadCV = () => {
                           <FileText className="h-5 w-5 text-[#64748B]" />
                         </div>
                         <div>
-                          <div className="text-[13px] font-bold text-[#0A1128]">{uploadFileName || "portfolio_jane_doe.pdf"}</div>
-                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">4.8 MB • UPLOADING...</div>
+                          <div className="text-[13px] font-bold text-[#0A1128]">{uploadFileName || "candidate_cv.pdf"}</div>
+                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">UPLOADING...</div>
                         </div>
                       </div>
-                      <div className="text-[13px] font-bold text-[#0066FF]">45%</div>
+                      <div className="text-[13px] font-bold text-[#0066FF]">Processing</div>
                     </div>
                     <div className="absolute bottom-0 left-0 h-1 bg-[#F1F5F9] w-full mt-3">
-                      <div className="h-full bg-[#0066FF] w-[45%] rounded-r-full transition-all duration-500"></div>
-                    </div>
-                  </div>
-
-                  {/* Waiting */}
-                  <div className="p-4 bg-white border border-[#E2E8F0] rounded-xl relative overflow-hidden">
-                    <div className="flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg">
-                          <Paperclip className="h-5 w-5 text-[#64748B]" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-[#0A1128]">certifications_pack.zip</div>
-                          <div className="text-[11px] font-bold text-[#64748B] mt-0.5">12.4 MB • WAITING</div>
-                        </div>
-                      </div>
-                      <div className="text-[13px] font-bold text-[#0A1128]">0%</div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 h-1 bg-[#F1F5F9] w-full mt-3">
-                      <div className="h-full bg-[#0066FF] w-[5%] rounded-r-full"></div>
+                      <div className="h-full bg-[#0066FF] w-full rounded-r-full transition-all duration-500 animate-pulse"></div>
                     </div>
                   </div>
                 </div>
@@ -326,9 +270,6 @@ const UploadCV = () => {
 
                 {/* Footer Image 2 */}
                 <div className="px-8 py-5 mt-6 flex items-center justify-end gap-3 bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-[20px]">
-                  <button className="text-[13px] font-bold text-[#0A1128] px-4 py-2 hover:bg-[#E2E8F0] rounded-lg transition-colors">
-                    Cancel
-                  </button>
                   <button disabled className="text-[13px] font-bold text-[#94A3B8] bg-[#E2E8F0] px-6 py-2.5 rounded-xl flex items-center gap-2 cursor-not-allowed">
                     Continue <ArrowRight className="h-4 w-4" />
                   </button>
@@ -429,7 +370,8 @@ const UploadCV = () => {
                 </div>
               </form>
             )}
-          </Card>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
