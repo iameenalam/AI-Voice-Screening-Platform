@@ -7,14 +7,19 @@ import OpenAI from 'openai';
 
 const router = express.Router();
 
-// Lazy initialization of OpenAI client
+// Lazy initialization of OpenAI client configured for OpenRouter
 const getOpenAIClient = () => {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return null;
   }
   return new OpenAI({
     apiKey: apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': 'https://vocalent.com',
+      'X-Title': 'Vocalent',
+    }
   });
 };
 
@@ -59,7 +64,7 @@ Do not include any other text, markdown blocks, or explanation, just the raw JSO
 
     console.log('🤖 Calling OpenAI to generate questions...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
@@ -263,7 +268,7 @@ Rules:
     try {
       console.log('🤖 Calling OpenAI for response analysis...');
       const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -380,7 +385,7 @@ router.post('/:id/complete', authenticate, async (req, res) => {
               console.log(`  🔍 Analyzing response ${parseInt(qIndex) + 1}...`);
               
               const analysisResult = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
+                model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
                 messages: [
                   {
                     role: 'system',
@@ -461,7 +466,7 @@ Return this exact structure:
         console.log('📝 Generating AI summary...');
         
         const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
@@ -691,7 +696,7 @@ router.post('/public/:token/complete', async (req, res) => {
           if (responseText.trim()) {
             try {
               const analysisResult = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
+                model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
                 messages: [
                   {
                     role: 'system',
@@ -747,7 +752,7 @@ router.post('/public/:token/complete', async (req, res) => {
     if (openai) {
       try {
         const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
