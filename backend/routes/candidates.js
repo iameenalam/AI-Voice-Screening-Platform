@@ -276,19 +276,26 @@ async function parseCVText(text) {
   const normalizedText = normalizeText(text);
   console.log(`📝 Normalized text length: ${normalizedText.length} characters`);
   
-  // Check if OpenAI is available
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) {
-    console.warn('⚠️ OpenAI API key not found, using fallback extraction');
+  // Check if OpenRouter is available
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (!openrouterKey) {
+    console.warn('⚠️ OpenRouter API key not found, using fallback extraction');
     return fallbackExtraction(normalizedText);
   }
   
   try {
-    // Use OpenAI to extract structured data from CV
+    // Use OpenRouter to extract structured data from CV
     const { OpenAI } = await import('openai');
-    const openai = new OpenAI({ apiKey: openaiKey });
+    const openai = new OpenAI({
+      apiKey: openrouterKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+      defaultHeaders: {
+        'HTTP-Referer': 'https://vocalent.com',
+        'X-Title': 'Vocalent',
+      }
+    });
     
-    console.log('🤖 Calling OpenAI for CV parsing...');
+    console.log('🤖 Calling OpenRouter for CV parsing...');
     
     const prompt = `Extract the following information from this CV/resume text. Return ONLY a valid JSON object with these exact fields:
 {
@@ -311,7 +318,7 @@ CV Text:
 ${normalizedText.substring(0, 4000)}`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: process.env.AI_MODEL || 'openai/gpt-3.5-turbo',
       messages: [
         {
           role: 'system',
