@@ -17,133 +17,62 @@ const Landing = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section id="home" className="pt-24 pb-20 px-6 relative overflow-hidden bg-white border-b border-[#E2E8F0] min-h-[80vh] flex items-center">
+      <section id="home" className="px-6 relative overflow-hidden bg-white border-b border-[#E2E8F0] min-h-[calc(100vh-72px)] flex flex-col justify-center items-center">
         {/* Subtle mesh background grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30" />
         
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="grid lg:grid-cols-12 gap-12 items-center">
+        <div className="container mx-auto max-w-4xl relative z-10 flex flex-col items-center justify-center text-center">
+
+          {/* Title */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#0A1128] tracking-tight leading-[1.1] mb-6 max-w-3xl">
+            AI-Powered First-Round Screening for{" "}
+            <span className="text-[#0066FF] relative inline-block">
+              Modern Teams
+              <span className="absolute left-0 bottom-1 w-full h-[6px] bg-[#0066FF]/10 rounded-full" />
+            </span>
+          </h1>
+
+          {/* Subtext */}
+          <p className="text-lg md:text-xl text-[#475569] mb-8 leading-relaxed max-w-2xl">
+            Automate first-round voice interviews, generate high-context screening questions, and select top talent faster with Vocalent's automated screening platform.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full max-w-md">
+            <Button 
+              size="lg" 
+              className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white px-8 py-6 rounded-xl font-bold flex items-center justify-center gap-2 group transition-all duration-200 shadow-md shadow-blue-500/10 hover:shadow-lg"
+              onClick={() => navigate("/signup")}
+            >
+              Start Screening (Recruiter)
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
             
-            {/* Left Content Column */}
-            <div className="lg:col-span-6 text-left">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E6F0FF] border border-[#B3D1FF] mb-6">
-                <Sparkles className="h-4 w-4 text-[#0066FF]" />
-                <span className="text-xs font-semibold text-[#0066FF] uppercase tracking-wider">Vocalent Cognitive Suite</span>
-              </div>
-
-              {/* Title */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#0A1128] tracking-tight leading-[1.1] mb-6">
-                AI-Powered Recruitment for{" "}
-                <span className="text-[#0066FF] relative inline-block">
-                  Modern Teams
-                  <span className="absolute left-0 bottom-1 w-full h-[6px] bg-[#0066FF]/10 rounded-full" />
-                </span>
-              </h1>
-
-              {/* Subtext */}
-              <p className="text-lg md:text-xl text-[#475569] mb-8 leading-relaxed max-w-xl">
-                Automate candidate screening, generate high-context interview questions, and decode human sentiment with Vocalent's cognitive intelligence suite.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-                <Button 
-                  size="lg" 
-                  className="bg-[#0066FF] hover:bg-[#0052CC] text-white px-8 py-6 rounded-xl font-bold flex items-center justify-center gap-2 group transition-all duration-200 shadow-md shadow-blue-500/10 hover:shadow-lg"
-                  onClick={() => navigate("/signup")}
-                >
-                  Get Started (Recruiter)
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-                
-                <Button 
-                  size="lg"
-                  variant="outline"
-                  className="bg-[#E6F0FF] hover:bg-[#D9E8FF] border-none text-[#0066FF] px-8 py-6 rounded-xl font-bold transition-colors"
-                  onClick={() => navigate("/login")}
-                >
-                  Take Interview
-                </Button>
-              </div>
-            </div>
-
-            {/* Right Media Column - SVG Illustration matching team meeting layout */}
-            <div className="lg:col-span-6 relative flex justify-center">
-              <div className="relative w-full max-w-[540px] aspect-[4/3] rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xl card-shadow overflow-hidden">
-                {/* Simulated Collaboration Illustration */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-indigo-50/20 to-white" />
-                
-                <div className="relative h-full w-full flex flex-col justify-between z-10">
-                  <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#EF4444]" />
-                      <div className="w-3 h-3 rounded-full bg-[#F59E0B]" />
-                      <div className="w-3 h-3 rounded-full bg-[#10B981]" />
-                    </div>
-                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">Live Agent Feed</span>
-                  </div>
-
-                  <div className="flex-1 flex items-center justify-center py-6">
-                    {/* Animated soundwaves and avatar cards represent matching design elements */}
-                    <div className="w-full grid grid-cols-3 gap-4 items-center">
-                      <div className="flex flex-col items-center bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
-                        <div className="w-12 h-12 rounded-full bg-[#E2E8F0] mb-2 flex items-center justify-center">
-                          <Users className="h-6 w-6 text-[#64748B]" />
-                        </div>
-                        <div className="w-16 h-2 bg-[#CBD5E1] rounded-full mb-1" />
-                        <div className="w-10 h-1.5 bg-[#E2E8F0] rounded-full" />
-                      </div>
-
-                      <div className="flex flex-col items-center bg-[#E6F0FF] p-5 rounded-xl border-2 border-[#0066FF] shadow-lg relative -translate-y-2">
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-[#0066FF] text-[10px] font-bold text-white uppercase tracking-wider">
-                          AI Evaluator
-                        </div>
-                        <div className="w-14 h-14 rounded-full bg-[#B3D1FF] mb-3 flex items-center justify-center">
-                          <Bot className="h-8 w-8 text-[#0066FF]" />
-                        </div>
-                        <div className="w-20 h-2 bg-[#0066FF] rounded-full mb-1.5" />
-                        <div className="w-12 h-1.5 bg-[#93C5FD] rounded-full" />
-                      </div>
-
-                      <div className="flex flex-col items-center bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
-                        <div className="w-12 h-12 rounded-full bg-[#E2E8F0] mb-2 flex items-center justify-center">
-                          <Mic className="h-6 w-6 text-[#64748B]" />
-                        </div>
-                        <div className="w-16 h-2 bg-[#CBD5E1] rounded-full mb-1" />
-                        <div className="w-10 h-1.5 bg-[#E2E8F0] rounded-full" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#0A1128] text-white p-4 rounded-xl border border-[#1E293B]">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse" />
-                      <span className="text-xs font-semibold text-blue-400 tracking-wider">SPEECH SYNTHESIS STREAM</span>
-                    </div>
-                    <p className="text-xs text-slate-300 font-mono line-clamp-1">
-                      &gt; Neural model parsed 42 keys... Match accuracy verified.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            <Button 
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto bg-[#E6F0FF] hover:bg-[#D9E8FF] border-none text-[#0066FF] px-8 py-6 rounded-xl font-bold transition-colors"
+              onClick={() => navigate("/login")}
+            >
+              Take Interview
+            </Button>
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 px-6 bg-white border-b border-[#E2E8F0]">
-        <div className="container mx-auto max-w-7xl">
+      <section id="how-it-works" className="px-6 bg-white border-b border-[#E2E8F0] min-h-[calc(100vh-72px)] flex flex-col justify-center items-center py-24">
+        <div className="container mx-auto max-w-7xl w-full">
           
-          {/* Header with blue underline */}
-          <div className="mb-16 text-left max-w-xl">
+          {/* Header without blue underline, matching Features header size */}
+          <div className="mb-16 text-center max-w-2xl mx-auto">
             <span className="text-xs font-bold text-[#0066FF] uppercase tracking-widest block mb-2">Process Overview</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-[#0A1128] mb-3">
-              How it works
+            <h2 className="text-3xl md:text-5xl font-extrabold text-[#0A1128] mb-4">
+              How It Works
             </h2>
-            <div className="w-16 h-[4px] bg-[#0066FF] rounded-full" />
+            <p className="text-[#64748B] text-base md:text-lg">
+              Screen candidates effortlessly with our automated, intelligent first-round voice screening pipeline.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -187,7 +116,59 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Recruitment Dashboard Reimagined Section */}
+      {/* Cognitive Superpowers Section (Features) - Deep Navy background */}
+      <section id="features" className="px-6 bg-[#0A1128] text-white border-b border-[#1E293B] relative overflow-hidden min-h-[calc(100vh-72px)] flex flex-col justify-center items-center py-24">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
+        
+        <div className="container mx-auto max-w-7xl relative z-10 w-full">
+          <div className="mb-16 text-center max-w-2xl mx-auto">
+            <span className="text-xs font-bold text-[#0066FF] uppercase tracking-widest block mb-2">Advanced Modules</span>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
+              Cognitive Superpowers
+            </h2>
+            <p className="text-slate-400 text-base md:text-lg">
+              Empower your recruiting funnel with next-generation deep intelligence features.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Superpower 1 */}
+            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
+              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
+                <Brain className="h-6 w-6 text-[#0066FF]" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">AI Question Gen</h3>
+              <p className="text-slate-400 leading-relaxed text-sm">
+                Tailors targeted technical & cultural interview questions in real-time based on candidate CV details and role specifications.
+              </p>
+            </div>
+
+            {/* Superpower 2 */}
+            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
+              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
+                <TrendingUp className="h-6 w-6 text-[#0066FF]" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Sentiment Analysis</h3>
+              <p className="text-slate-400 leading-relaxed text-sm">
+                Analyzes speech velocity, sentence composition, and vocabulary to evaluate confidence levels and communication skills.
+              </p>
+            </div>
+
+            {/* Superpower 3 */}
+            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
+              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
+                <UploadCloud className="h-6 w-6 text-[#0066FF]" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Bulk CV Parsing</h3>
+              <p className="text-slate-400 leading-relaxed text-sm">
+                Supports drag-and-drop ingestion of up to 50 CVs at once, automatically updating profiles and creating pipeline records.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Recruitment Dashboard Reimagined Section (Benefits) */}
       <section id="benefits" className="py-24 px-6 bg-[#F8F9FA] border-b border-[#E2E8F0]">
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-12 gap-12 items-center">
@@ -299,58 +280,6 @@ const Landing = () => {
               </div>
             </div>
 
-          </div>
-        </div>
-      </section>
-
-      {/* Cognitive Superpowers Section - Deep Navy background */}
-      <section className="py-24 px-6 bg-[#0A1128] text-white border-b border-[#1E293B] relative overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
-        
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="mb-16 text-center max-w-2xl mx-auto">
-            <span className="text-xs font-bold text-[#0066FF] uppercase tracking-widest block mb-2">Advanced Modules</span>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              Cognitive Superpowers
-            </h2>
-            <p className="text-slate-400 text-base md:text-lg">
-              Empower your recruiting funnel with next-generation deep intelligence features.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Superpower 1 */}
-            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
-                <Brain className="h-6 w-6 text-[#0066FF]" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">AI Question Gen</h3>
-              <p className="text-slate-400 leading-relaxed text-sm">
-                Tailors targeted technical & cultural interview questions in real-time based on candidate CV details and role specifications.
-              </p>
-            </div>
-
-            {/* Superpower 2 */}
-            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
-                <TrendingUp className="h-6 w-6 text-[#0066FF]" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Sentiment Analysis</h3>
-              <p className="text-slate-400 leading-relaxed text-sm">
-                Analyzes speech velocity, sentence composition, and vocabulary to evaluate confidence levels and communication skills.
-              </p>
-            </div>
-
-            {/* Superpower 3 */}
-            <div className="bg-[#0E1B3E] border border-blue-950/50 rounded-2xl p-8 hover:border-[#0066FF]/50 transition-all duration-300">
-              <div className="w-12 h-12 bg-[#0066FF]/10 rounded-xl flex items-center justify-center border border-[#0066FF]/20 mb-6">
-                <UploadCloud className="h-6 w-6 text-[#0066FF]" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Bulk CV Parsing</h3>
-              <p className="text-slate-400 leading-relaxed text-sm">
-                Supports drag-and-drop ingestion of up to 50 CVs at once, automatically updating profiles and creating pipeline records.
-              </p>
-            </div>
           </div>
         </div>
       </section>

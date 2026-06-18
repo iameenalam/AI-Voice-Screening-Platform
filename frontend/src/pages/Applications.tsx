@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sidebar } from "@/components/Sidebar";
+import { Logo } from "@/components/Logo";
 import { useNavigate } from "react-router-dom";
 import { 
   Loader2, Download, Search, Filter, Send, Mail, 
@@ -158,7 +159,8 @@ const Applications = () => {
           candidateId: candidate._id,
           role: candidate.jobField || candidate.role || 'Role Undefined',
           name: candidate.name || 'Candidate',
-          cvUrl: candidate.cvUrl
+          cvUrl: candidate.cvUrl,
+          email: candidate.email
         }
       });
     } else {
@@ -217,6 +219,8 @@ const Applications = () => {
           >
             <Menu className="h-6 w-6" />
           </button>
+          <Logo />
+          <div className="w-6" /> {/* Spacer for centering */}
         </header>
 
         {/* Scrollable Container */}

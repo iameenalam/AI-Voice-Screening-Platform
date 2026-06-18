@@ -72,13 +72,11 @@ const Results = () => {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0F172A] flex flex-col font-sans">
-      <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="hover:opacity-85 transition-opacity">
-              <Logo />
-            </button>
-          </div>
+      <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm relative">
+        <div className="w-full px-4 md:px-8 py-3 flex items-center justify-center">
+          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+            <Logo />
+          </button>
         </div>
       </nav>
       

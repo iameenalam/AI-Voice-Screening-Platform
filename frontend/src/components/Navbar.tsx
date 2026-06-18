@@ -83,16 +83,16 @@ export const Navbar = ({
                 Home
               </button>
               <button
-                onClick={() => scrollToSection("features")}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Features
-              </button>
-              <button
                 onClick={() => scrollToSection("how-it-works")}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 How It Works
+              </button>
+              <button
+                onClick={() => scrollToSection("features")}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Features
               </button>
               <button
                 onClick={() => scrollToSection("benefits")}
@@ -230,16 +230,16 @@ export const Navbar = ({
                     Home
                   </button>
                   <button
-                    onClick={() => scrollToSection("features")}
-                    className="text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
-                  >
-                    Features
-                  </button>
-                  <button
                     onClick={() => scrollToSection("how-it-works")}
                     className="text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
                   >
                     How It Works
+                  </button>
+                  <button
+                    onClick={() => scrollToSection("features")}
+                    className="text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+                  >
+                    Features
                   </button>
                   <button
                     onClick={() => scrollToSection("benefits")}

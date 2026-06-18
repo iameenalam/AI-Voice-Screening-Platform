@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Upload, CheckCircle2, Loader2, Building, Briefcase, Mail, Sparkles } from "lucide-react";
+import { Upload, CheckCircle2, Check, Loader2, Building, Briefcase, Mail, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
@@ -121,72 +121,43 @@ const Apply = () => {
   // Thank you screen after successful submission
   if (submitted) {
     return (
-      <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
+      <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans relative">
+        {/* Sidebar strip */}
+        <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#1E293B]"></div>
         
-        <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm relative">
-          <div className="w-full px-4 md:px-8 py-3 flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
-              <Logo />
-            </button>
-          </div>
-        </nav>
-        
-        <div className="flex-1 flex items-center justify-center relative z-10 py-12">
-          <div className="w-full px-4 md:px-8">
-            <div className="max-w-lg mx-auto text-center">
-              <div className="animate-fade-in">
-                {/* Success icon with animation */}
-                <div className="relative w-28 h-28 mx-auto mb-8">
-                  <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
-                  <div className="absolute inset-0 bg-green-500/10 rounded-full" />
-                  <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 flex items-center justify-center">
-                    <CheckCircle2 className="h-14 w-14 text-green-500" />
-                  </div>
-                </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="bg-white rounded-3xl p-10 sm:p-14 text-center max-w-lg w-full shadow-[0_8px_40px_rgb(0,0,0,0.04)] border border-[#E2E8F0] relative overflow-hidden">
+            
+            {/* Faint background check */}
+            <CheckCircle2 className="absolute top-10 right-10 h-24 w-24 text-[#F1F5F9] -z-10" />
 
-                <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-                  Thank You for Applying!
-                </h1>
-                
-                <p className="text-lg text-muted-foreground mb-3">
-                  Your application has been submitted successfully.
+            <div className="w-16 h-16 mx-auto bg-[#EEF2FF] rounded-2xl flex items-center justify-center text-[#0047b3] mb-8 relative z-10">
+              <div className="w-8 h-8 rounded-full bg-[#0047b3] flex items-center justify-center text-white">
+                <Check className="h-4 w-4 stroke-[3px]" />
+              </div>
+            </div>
+
+            <h1 className="text-3xl font-extrabold text-[#0A1128] mb-2 relative z-10">
+              Thank You for Applying!
+            </h1>
+            
+            <p className="text-[15px] text-[#475569] leading-relaxed mb-8 relative z-10">
+              Your application has been submitted successfully.
+            </p>
+
+            <div className="space-y-6 text-left relative z-10 border-t border-[#E2E8F0] pt-6">
+              <div>
+                <h3 className="font-bold text-[#0A1128] text-[15px] mb-1">We'll be in touch</h3>
+                <p className="text-[14px] text-[#475569] leading-relaxed">
+                  Our team will review your application and reach out via email at <span className="font-semibold text-[#0A1128]">{candidateData.email}</span>
                 </p>
-                
-                <Card className="p-6 bg-card backdrop-blur-xl border-border/50 shadow-lg mb-8">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Mail className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">We'll be in touch</p>
-                        <p className="text-xs text-muted-foreground">
-                          Our team will review your application and reach out via email at <span className="text-foreground font-medium">{candidateData.email}</span>
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">AI-Powered Interview</p>
-                        <p className="text-xs text-muted-foreground">
-                          If selected, you'll receive an interview link via email. The interview is voice-based and takes about 10–15 minutes.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+              </div>
 
-                <Button
-                  onClick={() => navigate("/")}
-                  variant="outline"
-                  className="hover:bg-accent/50 border-border/50 transition-all"
-                >
-                  Back to Home
-                </Button>
+              <div className="border-t border-[#E2E8F0] pt-6">
+                <h3 className="font-bold text-[#0A1128] text-[15px] mb-1">AI-Powered Interview</h3>
+                <p className="text-[14px] text-[#475569] leading-relaxed">
+                  If selected, you'll receive an interview link via email. The interview is voice-based and takes about 45 minutes.
+                </p>
               </div>
             </div>
           </div>
@@ -199,7 +170,7 @@ const Apply = () => {
     <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
       
       <nav className="sticky top-0 w-full z-50 bg-white border-b border-[#E2E8F0] shadow-sm relative">
-        <div className="w-full px-4 md:px-8 py-3 flex items-center justify-between">
+        <div className="w-full px-4 md:px-8 py-3 flex items-center justify-center">
           <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
             <Logo />
           </button>

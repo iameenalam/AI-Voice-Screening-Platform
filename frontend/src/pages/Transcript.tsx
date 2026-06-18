@@ -69,12 +69,10 @@ const Transcript = () => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
       
       <nav className="sticky top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm relative">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
-              <Logo />
-            </button>
-          </div>
+        <div className="w-full px-4 md:px-8 py-3 flex items-center justify-center">
+          <button onClick={() => navigate("/")} className="hover:opacity-80 transition-opacity">
+            <Logo />
+          </button>
         </div>
       </nav>
       
@@ -90,26 +88,9 @@ const Transcript = () => {
                 {candidateName} {candidateRole ? `- ${candidateRole}` : ''}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <Button
-                onClick={() => navigate("/results", { state: { interviewId } })}
-                variant="outline"
-                className="w-full sm:w-auto hover:bg-accent/50 border-border/50 transition-all"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                onClick={() => navigate("/download", { state: { interviewId } })}
-                className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-background shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </div>
           </div>
 
-          <Card className="p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in">
+          <Card className="p-4 sm:p-6 md:p-8 bg-card/80 backdrop-blur-xl border-border/50 card-shadow hover-lift animate-fade-in mb-6">
             <div className="space-y-3 sm:space-y-4 md:space-y-6">
               {transcript.length > 0 ? (
                 transcript.map((item: any, index: number) => (
@@ -135,6 +116,24 @@ const Transcript = () => {
               )}
             </div>
           </Card>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              onClick={() => navigate("/results", { state: { interviewId } })}
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto sm:flex-1 hover:bg-accent/50 border-border/50 transition-all"
+            >
+              Back
+            </Button>
+            <Button
+              onClick={() => navigate("/download", { state: { interviewId } })}
+              className="w-full sm:w-auto sm:flex-1 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white shadow-lg hover:shadow-xl transition-all"
+              size="lg"
+            >
+              Export
+            </Button>
+          </div>
         </div>
         </div>
       </div>
