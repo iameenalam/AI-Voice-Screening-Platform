@@ -51,12 +51,24 @@ export async function sendInterviewInvitation({ to, candidateName, interviewLink
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
   const defaultSubject = `You're Invited to Interview!${companyName ? ` - ${companyName}` : ''}`;
-  const subject = customSubject || defaultSubject;
+  const rawSubject = customSubject || defaultSubject;
+  const subject = rawSubject
+    .replace(/{{name}}/g, candidateName)
+    .replace(/{{firstName}}/g, candidateName.split(' ')[0])
+    .replace(/{{role}}/g, jobField || '')
+    .replace(/{{jobField}}/g, jobField || '');
 
   let messageHtml = '';
   if (customMessage) {
+    // Replace placeholders with candidate's actual details
+    const personalMessage = customMessage
+      .replace(/{{name}}/g, candidateName)
+      .replace(/{{firstName}}/g, candidateName.split(' ')[0])
+      .replace(/{{role}}/g, jobField || '')
+      .replace(/{{jobField}}/g, jobField || '');
+
     // Convert newlines to breaks
-    const formatted = customMessage.replace(/\n/g, '<br/>');
+    const formatted = personalMessage.replace(/\n/g, '<br/>');
     messageHtml = `
       <p style="margin: 0 0 16px; font-size: 15px; color: #3f3f46; line-height: 1.6; white-space: pre-wrap;">
         ${formatted}

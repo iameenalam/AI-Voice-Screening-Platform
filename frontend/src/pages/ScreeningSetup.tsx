@@ -38,6 +38,7 @@ const ScreeningSetup = () => {
   const [name, setName] = useState(location.state?.name || 'NaN');
   const [cvUrl, setCvUrl] = useState(location.state?.cvUrl || '');
   const [email, setEmail] = useState(location.state?.email || '');
+  const [batchCandidates, setBatchCandidates] = useState<any[]>([]);
 
   useEffect(() => {
     if (candidateId && !isBatch) {
@@ -53,6 +54,30 @@ const ScreeningSetup = () => {
       });
     }
   }, [candidateId, isBatch]);
+
+  useEffect(() => {
+    if (isBatch && candidateIds && candidateIds.length > 0) {
+      Promise.all(candidateIds.map((id: string) => api.getCandidate(id)))
+        .then(results => {
+          const loadedCandidates = results
+            .map(res => res.data)
+            .filter(Boolean);
+          setBatchCandidates(loadedCandidates);
+          
+          setName(`Batch: ${loadedCandidates.length} Candidates`);
+          
+          const roles = Array.from(new Set(loadedCandidates.map(c => c.role || c.jobField || 'Unknown')));
+          if (roles.length === 1) {
+            setRole(roles[0]);
+          } else {
+            setRole("Multiple Roles");
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load batch candidates info", err);
+        });
+    }
+  }, [isBatch, candidateIds]);
 
   const defaultQuestions: Question[] = [
     { category: "TECHNICAL EVALUATION", text: `Can you describe your experience and technical proficiency relevant to the ${role} role?`, logic: "Standard technical screen." },
@@ -76,18 +101,19 @@ const ScreeningSetup = () => {
 
   const loadSuggestedQuestions = async () => {
     setGenerating(true);
-    const result = await api.generateQuestions(role);
+    const queryRole = role === "Multiple Roles" ? "General Candidate" : role;
+    const result = await api.generateQuestions(queryRole);
     setGenerating(false);
     
     if (result.data?.questions && result.data.questions.length > 0) {
       setQuestions(result.data.questions.map((q: any) => {
         if (typeof q === 'string') {
-          return { category: "ROLE ALIGNED", text: q, logic: `Generated based on the ${role} requirements.` };
+          return { category: "ROLE ALIGNED", text: q, logic: `Generated based on the ${queryRole} requirements.` };
         }
         return {
           category: (q.category || "ROLE ALIGNED").toUpperCase(),
           text: q.text || "",
-          logic: q.logic || `Targeted based on the ${role} requirements.`
+          logic: q.logic || `Targeted based on the ${queryRole} requirements.`
         };
       }));
     } else {
@@ -208,14 +234,25 @@ const ScreeningSetup = () => {
               <div>
                 <h1 className="text-4xl font-extrabold text-[#0A1128] tracking-tight">{name}</h1>
                 <h2 className="text-xl font-bold text-[#0066FF] mt-1">{role}</h2>
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                    <MapPin className="h-3.5 w-3.5" /> SAN FRANCISCO, CA
+                {!isBatch ? (
+                  <div className="flex items-center gap-3 mt-4">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
+                      <MapPin className="h-3.5 w-3.5" /> SAN FRANCISCO, CA
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
+                      <Briefcase className="h-3.5 w-3.5" /> 8+ YEARS EXP.
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                    <Briefcase className="h-3.5 w-3.5" /> 8+ YEARS EXP.
+                ) : (
+                  <div className="flex items-center gap-3 mt-4">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E0F2FE] text-[#0369A1] rounded-lg text-[11px] font-bold tracking-wide uppercase">
+                      Batch Screening Mode
+                    </div>
+                    <div className="text-xs text-[#64748B] font-semibold">
+                      {batchCandidates.length || candidateIds?.length || 0} candidates selected
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               {!isBatch && (
                 <button 
@@ -349,48 +386,83 @@ const ScreeningSetup = () => {
           {/* Right Column (Sidebar) */}
           <div className="space-y-6 lg:sticky lg:top-8">
             
-            {/* Extracted Skills Card */}
-            <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-6 h-6 rounded-full bg-[#0066FF] flex items-center justify-center text-white">
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                </div>
-                <h3 className="text-[15px] font-bold text-[#0A1128]">Extracted Skills</h3>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-8">
-                {['FIGMA', 'PROTOTYPING', 'USER RESEARCH', 'B2B SAAS', 'DESIGN SYSTEMS', 'HEURISTIC EVAL'].map(skill => (
-                  <span key={skill} className="px-2.5 py-1.5 bg-[#EEF2FF] text-[#0066FF] text-[10px] font-bold tracking-widest uppercase rounded-md">
-                    {skill}
-                  </span>
-                ))}
-              </div>
+            {!isBatch ? (
+              <>
+                {/* Extracted Skills Card */}
+                <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-6 h-6 rounded-full bg-[#0066FF] flex items-center justify-center text-white">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </div>
+                    <h3 className="text-[15px] font-bold text-[#0A1128]">Extracted Skills</h3>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-8">
+                    {['FIGMA', 'PROTOTYPING', 'USER RESEARCH', 'B2B SAAS', 'DESIGN SYSTEMS', 'HEURISTIC EVAL'].map(skill => (
+                      <span key={skill} className="px-2.5 py-1.5 bg-[#EEF2FF] text-[#0066FF] text-[10px] font-bold tracking-widest uppercase rounded-md">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
 
-              <div className="bg-[#FFF7ED] border border-[#FFEDD5] rounded-xl p-5 relative">
-                <div className="text-[10px] font-extrabold text-[#C2410C] tracking-widest uppercase mb-2">
-                  ARCHITECT'S NOTE
-                </div>
-                <p className="text-[12px] text-[#475569] leading-relaxed font-medium">
-                  Questions were weighted toward her 3-year tenure at <span className="font-bold text-[#0A1128]">Dropbox</span> where she led the redesign of the admin console.
-                </p>
-              </div>
-            </Card>
+                  <div className="bg-[#FFF7ED] border border-[#FFEDD5] rounded-xl p-5 relative">
+                    <div className="text-[10px] font-extrabold text-[#C2410C] tracking-widest uppercase mb-2">
+                      ARCHITECT'S NOTE
+                    </div>
+                    <p className="text-[12px] text-[#475569] leading-relaxed font-medium">
+                      Questions were weighted toward her 3-year tenure at <span className="font-bold text-[#0A1128]">Dropbox</span> where she led the redesign of the admin console.
+                    </p>
+                  </div>
+                </Card>
 
-            {/* Fit Score Card */}
-            <Card className="bg-[#0047b3] border-none rounded-2xl shadow-[0_8px_30px_rgba(0,71,179,0.25)] p-7 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-              
-              <h3 className="text-white font-bold text-[15px] mb-2 relative z-10">Candidate Fit Score</h3>
-              
-              <div className="flex items-baseline gap-1 mb-4 relative z-10">
-                <span className="text-white text-6xl font-black tracking-tight">94</span>
-                <span className="text-white/80 text-xl font-bold">%</span>
-              </div>
-              
-              <p className="text-white/80 text-[12px] leading-relaxed font-medium relative z-10">
-                Sarah's portfolio case studies align 92% with our current technical roadmap for Q3.
-              </p>
-            </Card>
+                {/* Fit Score Card */}
+                <Card className="bg-[#0047b3] border-none rounded-2xl shadow-[0_8px_30px_rgba(0,71,179,0.25)] p-7 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                  
+                  <h3 className="text-white font-bold text-[15px] mb-2 relative z-10">Candidate Fit Score</h3>
+                  
+                  <div className="flex items-baseline gap-1 mb-4 relative z-10">
+                    <span className="text-white text-6xl font-black tracking-tight">94</span>
+                    <span className="text-white/80 text-xl font-bold">%</span>
+                  </div>
+                  
+                  <p className="text-white/80 text-[12px] leading-relaxed font-medium relative z-10">
+                    Sarah's portfolio case studies align 92% with our current technical roadmap for Q3.
+                  </p>
+                </Card>
+              </>
+            ) : (
+              /* Batch Summary Card */
+              <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">
+                <div className="flex items-center gap-3 mb-6 border-b border-[#E2E8F0] pb-4">
+                  <div className="w-8 h-8 rounded-xl bg-[#0066FF]/10 flex items-center justify-center text-[#0066FF]">
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-bold text-[#0A1128]">Batch Candidates</h3>
+                    <p className="text-xs text-[#64748B] mt-0.5">{batchCandidates.length || candidateIds?.length || 0} Ready for Invite</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                  {batchCandidates.length > 0 ? (
+                    batchCandidates.map((c, i) => (
+                      <div key={c._id || i} className="flex items-start justify-between gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-transparent">
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-bold text-[#0A1128] truncate">{c.name}</div>
+                          <div className="text-[11px] text-[#64748B] font-medium truncate mt-0.5">{c.role || c.jobField || "Candidate"}</div>
+                          <div className="text-[10px] text-[#94A3B8] font-medium truncate mt-0.5">{c.email}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-xs text-[#64748B] font-semibold">
+                      Loading candidates list...
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             <div className="pt-2">
               <Button

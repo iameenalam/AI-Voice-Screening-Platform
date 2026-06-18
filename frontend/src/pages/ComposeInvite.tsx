@@ -25,16 +25,33 @@ const ComposeInvite = () => {
   const candidateId = location.state?.candidateId || localStorage.getItem('currentCandidateId');
   const role = location.state?.role || 'Senior UI Designer';
   const name = location.state?.name || 'Sarah Jenkins';
-  const firstName = name.split(' ')[0] || 'Sarah';
+  const isBatch = location.state?.isBatch;
+
+  // For batch preview, mock a candidate name instead of displaying "Batch..."
+  const previewName = isBatch ? 'Sarah Jenkins' : name;
+  const previewFirstName = previewName.split(' ')[0] || 'Sarah';
+  const firstName = isBatch ? '{{firstName}}' : (name.split(' ')[0] || 'Sarah');
   const questions = location.state?.questions || [];
   
-  const isBatch = location.state?.isBatch;
   const email = location.state?.email || '';
-  const mockEmail = isBatch ? 'candidate@example.com' : (email || `${firstName.toLowerCase()}.${name.split(' ').slice(1).join('').toLowerCase() || 'jenkins'}@designmail.com`);
+  const mockEmail = isBatch ? 'sarah.jenkins@example.com' : (email || `${firstName.toLowerCase()}.${name.split(' ').slice(1).join('').toLowerCase() || 'jenkins'}@designmail.com`);
   const mockUrl = isBatch ? `vocalent.io/i/batch-${Math.floor(Math.random()*10000)}` : `vocalent.io/i/${role.split(' ').map((w: string) => w[0]).join('').toLowerCase()}-${candidateId?.substring(0,4) || '8021'}-${name.split(' ').slice(-1)[0].toLowerCase() || 'jenkins'}`;
 
-  const defaultSubject = `Interview Invitation: ${role} at Vocalent`;
-  const defaultMessage = `Hello ${firstName},
+  const previewRole = isBatch ? 'Senior UI Designer' : role;
+
+  const defaultSubject = isBatch 
+    ? `Interview Invitation: {{role}} at Vocalent`
+    : `Interview Invitation: ${role} at Vocalent`;
+
+  const defaultMessage = isBatch 
+    ? `Hello {{firstName}},
+
+You've been invited to interview for the {{role}} position at Vocalent.
+
+We'd love to discuss how your expertise could help shape our next generation of screening tools.
+
+This will be a 45-minute technical discussion followed by a culture fit session.`
+    : `Hello ${firstName},
 
 You've been invited to interview for the ${role} position at Vocalent.
 
@@ -44,6 +61,18 @@ This will be a 45-minute technical discussion followed by a culture fit session.
 
   const [subject, setSubject] = useState(defaultSubject);
   const [message, setMessage] = useState(defaultMessage);
+
+  const previewSubject = subject
+    .replace(/{{name}}/g, previewName)
+    .replace(/{{firstName}}/g, previewFirstName)
+    .replace(/{{role}}/g, previewRole)
+    .replace(/{{jobField}}/g, previewRole);
+
+  const previewMessage = message
+    .replace(/{{name}}/g, previewName)
+    .replace(/{{firstName}}/g, previewFirstName)
+    .replace(/{{role}}/g, previewRole)
+    .replace(/{{jobField}}/g, previewRole);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(`https://${mockUrl}`);
@@ -119,8 +148,16 @@ This will be a 45-minute technical discussion followed by a culture fit session.
             </div>
             <h1 className="text-3xl font-extrabold text-[#0A1128] tracking-tight">Send Interview Invite</h1>
             <p className="text-[14px] text-[#64748B] mt-2 font-medium">
-              Craft a personalized invitation for {name}. Your AI assistant has pre-filled this <br />
-              based on the {role} role requirements.
+              {isBatch ? (
+                <>
+                  Craft personalized invitations for your batch of candidates. Use <code className="bg-[#E2E8F0] px-1.5 py-0.5 rounded font-mono text-xs font-bold text-[#0052CC]">{`{{firstName}}`}</code>, <code className="bg-[#E2E8F0] px-1.5 py-0.5 rounded font-mono text-xs font-bold text-[#0052CC]">{`{{name}}`}</code>, or <code className="bg-[#E2E8F0] px-1.5 py-0.5 rounded font-mono text-xs font-bold text-[#0052CC]">{`{{role}}`}</code> to dynamically insert candidate details.
+                </>
+              ) : (
+                <>
+                  Craft a personalized invitation for {name}. Your AI assistant has pre-filled this <br />
+                  based on the {role} role requirements.
+                </>
+              )}
             </p>
           </div>
 
@@ -185,7 +222,7 @@ This will be a 45-minute technical discussion followed by a culture fit session.
                     <div className="w-2.5 h-2.5 rounded-full bg-[#27C93F]"></div>
                   </div>
                   <div className="flex-1 bg-white/70 rounded-md py-1.5 px-3 text-[10px] text-[#94A3B8] font-medium text-center truncate">
-                    https://mail.google.com/u/0/#inbox/{name.split(' ')[0].toLowerCase()}-{name.split(' ').slice(-1)[0].toLowerCase() || 'jenkins'}
+                    https://mail.google.com/u/0/#inbox/{previewName.split(' ')[0].toLowerCase()}-{previewName.split(' ').slice(-1)[0].toLowerCase() || 'jenkins'}
                   </div>
                 </div>
 
@@ -193,12 +230,14 @@ This will be a 45-minute technical discussion followed by a culture fit session.
                 <div className="p-10">
                   <div>
                     <div className="mb-10">
-                      <div className="text-[15px] font-bold text-[#0A1128]">Vocalent Recruitment</div>
-                      <div className="text-[12px] text-[#64748B]">to {mockEmail}</div>
+                      <div className="text-[15px] font-bold text-[#0A1128]">{previewSubject}</div>
+                      <div className="text-[12px] text-[#64748B] mt-1">
+                        <span className="font-semibold text-[#0A1128]">Vocalent Recruitment</span> to {mockEmail}
+                      </div>
                     </div>
 
                     <div className="text-[14px] text-[#334155] leading-[1.8] space-y-5 whitespace-pre-wrap">
-                      {message}
+                      {previewMessage}
                     </div>
 
                     <div className="mt-12 mb-12">
