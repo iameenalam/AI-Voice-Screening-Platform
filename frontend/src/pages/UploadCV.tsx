@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Sidebar } from "@/components/Sidebar";
+import { Logo } from "@/components/Logo";
 import { useNavigate } from "react-router-dom";
 import { 
   UploadCloud, CheckCircle2, ArrowRight, FileText, 
@@ -143,7 +144,8 @@ const UploadCV = () => {
           candidateId: data._id, 
           role: fullRole || candidateData.role,
           name: candidateData.name || data.name,
-          cvUrl: cvUrl || data.cvUrl
+          cvUrl: cvUrl || data.cvUrl,
+          email: candidateData.email || data.email
         } 
       });
     }
@@ -165,6 +167,8 @@ const UploadCV = () => {
           >
             <Menu className="h-6 w-6" />
           </button>
+          <Logo />
+          <div className="w-6" /> {/* Spacer for centering */}
         </header>
 
         {/* Scrollable Container */}

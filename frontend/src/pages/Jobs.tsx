@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sidebar } from "@/components/Sidebar";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Menu, Plus, Briefcase, Trash2, Edit2, X, CheckCircle2, Building2 } from "lucide-react";
+import { Menu, Plus, Briefcase, Trash2, Edit2, X, CheckCircle2, Building2, Link } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from 'react-markdown';
 
@@ -37,6 +38,14 @@ export default function Jobs() {
     } else if (result.error) {
       toast.error(typeof result.error === 'string' ? result.error : 'Failed to load jobs');
     }
+  };
+
+  const handleCopyApplyLink = () => {
+    const currentUser = api.getCurrentUser();
+    const company = currentUser?.company || 'Vocalent';
+    const link = `${window.location.origin}/apply?company=${encodeURIComponent(company)}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Company application link copied to clipboard!');
   };
 
   const handleOpenModal = (job: any = null) => {
@@ -101,28 +110,40 @@ export default function Jobs() {
         onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
       />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-[#E2E8F0] px-4 md:px-8 py-4 flex items-center justify-between shrink-0 gap-4">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        {/* Mobile Navbar with centered logo */}
+        <header className="bg-white border-b border-[#E2E8F0] px-4 py-4 flex items-center justify-between shrink-0 gap-4 md:hidden">
           <button 
-            className="md:hidden text-[#64748B] hover:text-[#0A1128]"
+            className="text-[#64748B] hover:text-[#0A1128]"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </button>
-          
-          <div className="flex-1" />
-          <div className="flex items-center gap-4 text-[#64748B]">
-            <Button onClick={() => handleOpenModal()} className="bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm">
-              <Plus className="h-4 w-4" /> New Opening
-            </Button>
-          </div>
+          <Logo />
+          <div className="w-6" /> {/* Spacer for centering */}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-          <div className="mb-8 flex items-center justify-between">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold text-[#0A1128]">Job Openings</h1>
               <p className="text-sm text-[#64748B] mt-1">Manage the roles you are actively hiring for.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <Button 
+                onClick={handleCopyApplyLink}
+                variant="outline"
+                className="w-full sm:w-auto border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#0A1128] font-bold px-6 py-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-none transition-colors"
+              >
+                <Link className="h-4 w-4 text-[#0066FF]" />
+                Copy Apply Link
+              </Button>
+              <Button 
+                onClick={() => handleOpenModal()} 
+                className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold px-6 py-6 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                <Plus className="h-4 w-4" /> New Opening
+              </Button>
             </div>
           </div>
 

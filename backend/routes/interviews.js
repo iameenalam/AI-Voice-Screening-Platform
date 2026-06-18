@@ -572,9 +572,14 @@ router.get('/public/:token', async (req, res) => {
       return res.status(410).json({ error: 'This interview link has expired. Please contact the recruiter for a new link.', expired: true });
     }
 
-    // Check if already completed (one-time use)
-    if (interview.status === 'completed') {
-      return res.status(400).json({ error: 'This interview has already been completed. Each link can only be used once.', completed: true });
+    // Check if already completed or in progress (one-time use)
+    if (interview.status === 'completed' || interview.status === 'in_progress') {
+      return res.status(400).json({ 
+        error: 'This interview link has already been used and cannot be opened again.', 
+        completed: interview.status === 'completed',
+        in_progress: interview.status === 'in_progress',
+        candidateName: interview.candidateId?.name?.split(' ')[0] || 'Candidate'
+      });
     }
 
     res.json(interview);
@@ -601,8 +606,12 @@ router.post('/public/:token/start', async (req, res) => {
       return res.status(410).json({ error: 'This interview link has expired.', expired: true });
     }
 
-    if (interview.status === 'completed') {
-      return res.status(400).json({ error: 'This interview has already been completed. Each link can only be used once.', completed: true });
+    if (interview.status === 'completed' || interview.status === 'in_progress') {
+      return res.status(400).json({ 
+        error: 'This interview link has already been used and cannot be started again.', 
+        completed: interview.status === 'completed',
+        in_progress: interview.status === 'in_progress'
+      });
     }
 
     interview.status = 'in_progress';

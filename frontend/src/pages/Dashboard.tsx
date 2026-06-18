@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sidebar } from "@/components/Sidebar";
+import { Logo } from "@/components/Logo";
 import { useNavigate } from "react-router-dom";
 import { 
   CheckCircle2, Clock, Users, ArrowUpRight, 
@@ -85,6 +86,8 @@ const Dashboard = () => {
           >
             <Menu className="h-6 w-6" />
           </button>
+          <Logo />
+          <div className="w-6" /> {/* Spacer for centering */}
         </header>
 
         {/* Scrollable Container */}
@@ -126,14 +129,6 @@ const Dashboard = () => {
                 <p className="text-xs text-[#64748B] font-semibold mt-1">
                   Your workspace is ready. Let's start building your dream team by adding your first candidates.
                 </p>
-                <Button
-                  onClick={handleCopyLink}
-                  variant="outline"
-                  className="mt-4 w-full sm:w-auto justify-center border-[#E2E8F0] text-[#0A1128] font-bold rounded-xl text-xs shadow-sm hover:bg-[#F8FAFC]"
-                >
-                  <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
-                  Copy Public Apply Link
-                </Button>
               </div>
 
               {/* 3 Metric Cards Row */}
@@ -323,14 +318,6 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                  <Button
-                    onClick={handleCopyLink}
-                    variant="outline"
-                    className="w-full sm:w-auto border-[#E2E8F0] text-[#0A1128] font-bold py-6 px-4 rounded-xl text-sm shadow-sm hover:bg-[#F8FAFC] flex items-center justify-center"
-                  >
-                    <Link className="h-4 w-4 mr-2 text-[#0066FF]" />
-                    Copy Apply Link
-                  </Button>
                   <Button
                     onClick={() => navigate("/upload-cv")}
                     className="w-full sm:w-auto bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold py-6 px-6 rounded-xl text-sm shadow-sm flex items-center justify-center"

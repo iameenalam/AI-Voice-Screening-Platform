@@ -8,6 +8,7 @@ import {
   RefreshCw, Shield, Send, Check, Trash2, Edit2, Plus, Save, Menu
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
+import { Logo } from "@/components/Logo";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -36,6 +37,7 @@ const ScreeningSetup = () => {
   const [role, setRole] = useState(location.state?.role || 'NaN');
   const [name, setName] = useState(location.state?.name || 'NaN');
   const [cvUrl, setCvUrl] = useState(location.state?.cvUrl || '');
+  const [email, setEmail] = useState(location.state?.email || '');
 
   useEffect(() => {
     if (candidateId && !isBatch) {
@@ -46,6 +48,7 @@ const ScreeningSetup = () => {
             setRole(result.data.role || result.data.jobField);
           }
           if (result.data.cvUrl) setCvUrl(result.data.cvUrl);
+          if (result.data.email) setEmail(result.data.email);
         }
       });
     }
@@ -151,6 +154,7 @@ const ScreeningSetup = () => {
         isBatch,
         role, 
         name, 
+        email,
         questions: questions 
       }
     });
@@ -184,6 +188,8 @@ const ScreeningSetup = () => {
           >
             <Menu className="h-6 w-6" />
           </button>
+          <Logo />
+          <div className="w-6" /> {/* Spacer for centering */}
         </header>
 
         {/* Scrollable Container */}
@@ -394,10 +400,6 @@ const ScreeningSetup = () => {
                 Compose Invite
                 <Send className="h-4 w-4" />
               </Button>
-              
-              <button className="w-full mt-4 text-[#475569] hover:text-[#0A1128] text-[13px] font-bold transition-colors">
-                Save Draft Template
-              </button>
             </div>
 
             </div>

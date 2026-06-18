@@ -49,6 +49,31 @@ const PublicInterview = () => {
   const lastTranscriptTimeRef = useRef<number>(Date.now());
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMutedRef = useRef(isMuted);
+
+  // Sync mute ref
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Pause / Resume speech recognition on mute toggle
+  useEffect(() => {
+    if (step === 'interview' && recognition) {
+      if (isMuted) {
+        try {
+          recognition.stop();
+        } catch (e) {
+          console.error("Error stopping recognition:", e);
+        }
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Error starting recognition:", e);
+        }
+      }
+    }
+  }, [isMuted, recognition, step]);
 
   useEffect(() => {
     if (!token) {
@@ -80,7 +105,10 @@ const PublicInterview = () => {
     if (result.error) {
       const errData = typeof result.error === 'string' ? { error: result.error } : (result.error as any);
       if (errData?.expired) setIsExpired(true);
-      if (errData?.completed) {
+      if (errData?.completed || errData?.in_progress) {
+        if (errData?.candidateName) {
+          setCandidateName(errData.candidateName);
+        }
         setStep('completed');
         return;
       }
@@ -90,7 +118,7 @@ const PublicInterview = () => {
     }
     
     if (result.data) {
-      if (result.data.status === 'completed') {
+      if (result.data.status === 'completed' || result.data.status === 'in_progress') {
         setCandidateName(result.data.candidateId?.name?.split(' ')[0] || 'Candidate');
         setStep('completed');
         return;
@@ -104,11 +132,7 @@ const PublicInterview = () => {
       setCandidateEmail(result.data.candidateId?.email || 'alex.design@career.com');
       setRole(result.data.jobField || result.data.candidateId?.role || 'Senior Product Designer');
       
-      if (result.data.status === 'in_progress' || location.state?.startImmediately) {
-        setStep('mictest_init');
-      } else {
-        setStep('landing');
-      }
+      setStep('landing');
     }
   };
 
@@ -132,20 +156,25 @@ const PublicInterview = () => {
       let detectedVoice = false;
 
       const checkAudioLevel = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a: number, b: number) => a + b) / dataArray.length;
-        setAudioLevel(average);
+        if (isMutedRef.current) {
+          setAudioLevel(0);
+          setWaveBars(new Array(15).fill(4));
+        } else if (analyser) {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a: number, b: number) => a + b) / dataArray.length;
+          setAudioLevel(average);
 
-        // Generate waveform animation
-        const newBars = Array.from({ length: 15 }, (_, i) => {
-          const val = dataArray[i * 4] || 0;
-          return Math.max(4, Math.min(48, Math.round(val / 4.5)));
-        });
-        setWaveBars(newBars);
+          // Generate waveform animation
+          const newBars = Array.from({ length: 15 }, (_, i) => {
+            const val = dataArray[i * 4] || 0;
+            return Math.max(4, Math.min(48, Math.round(val / 4.5)));
+          });
+          setWaveBars(newBars);
 
-        if (average > 15) {
-          detectedVoice = true;
-          setMicHealthy(true);
+          if (average > 15) {
+            detectedVoice = true;
+            setMicHealthy(true);
+          }
         }
 
         animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
@@ -207,9 +236,19 @@ const PublicInterview = () => {
     setLoading(true);
     
     // Call API to mark as started
-    await api.startPublicInterview(token);
+    const result = await api.startPublicInterview(token);
     
     setLoading(false);
+    
+    if (result.error) {
+      const errData = typeof result.error === 'string' ? { error: result.error } : (result.error as any);
+      const errMsg = errData?.error || "Failed to start interview. The link might have already been used.";
+      toast.error(errMsg);
+      setInterviewError(errMsg);
+      setStep('error');
+      return;
+    }
+    
     setStep('interview');
     initSpeechRecognition();
     
@@ -371,32 +410,10 @@ const PublicInterview = () => {
             </h1>
 
             <p className="text-[#475569] text-[15px] leading-relaxed mb-10">
-              Hello, we're excited to move forward with your application. Vocalent's AI-assisted platform will guide you through a series of technical and cultural assessments at your own pace.
+              Hello, we're excited to move forward with your application. Start your interview and make sure that you do not close your browser or reload the page.
             </p>
 
-            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-6 sm:p-8 mb-10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#E2E8F0]/30 -mr-16 -mt-16 rounded-full blur-2xl"></div>
-              
-              <div className="text-[10px] font-bold text-[#475569] tracking-widest uppercase mb-4 relative z-10">
-                ACCESS CREDENTIALS
-              </div>
-              
-              <div className="grid sm:grid-cols-2 gap-4 relative z-10">
-                <div>
-                  <div className="text-[10px] text-[#64748B] mb-1.5">Username</div>
-                  <div className="bg-white border border-[#E2E8F0] rounded-md px-3 py-2 text-[13px] font-bold font-mono">
-                    {candidateEmail}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-[#64748B] mb-1.5">Temporary Password</div>
-                  <div className="bg-white border border-[#E2E8F0] rounded-md px-3 py-2 text-[13px] font-bold font-mono text-[#0A1128] flex justify-between items-center">
-                    {token.substring(0, 8).toUpperCase()}-X9K
-                    <div className="text-[#94A3B8]">📋</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+
 
             <div className="flex flex-col items-center">
               <Button 
@@ -422,10 +439,6 @@ const PublicInterview = () => {
               <a href="#" className="hover:underline">Terms of Service</a>
             </div>
           </div>
-        </div>
-
-        <div className="mt-8 text-[9px] text-[#94A3B8] max-w-xl text-center leading-relaxed">
-          This is an automated message from Vocalent Recruitment Suite. If you did not apply for a position at our partner firms, please disregard this email. Vocalent uses biometric verification and AI sentiment analysis to ensure a fair assessment process.
         </div>
       </div>
     );
@@ -472,14 +485,10 @@ const PublicInterview = () => {
                 <Button 
                   onClick={startMicTest}
                   disabled={micTestRunning}
-                  className="w-full bg-[#789EE5] hover:bg-[#5b85d9] text-white font-bold py-6 rounded-xl text-[14px] mb-4"
+                  className="w-full bg-[#0047b3] hover:bg-[#003399] text-white font-bold py-6 rounded-xl text-[14px] mb-4"
                 >
                   {micTestRunning ? 'Listening...' : 'Start Test'}
                 </Button>
-                
-                <button className="text-[12px] font-bold text-[#0047b3] flex items-center justify-center gap-2 w-full hover:underline">
-                  <Settings className="h-3.5 w-3.5" /> Change Input Device
-                </button>
               </div>
             ) : (
               <div className="w-full bg-white rounded-3xl p-10 text-center border border-[#E2E8F0] shadow-xl shadow-blue-900/5 relative overflow-hidden">
@@ -517,11 +526,7 @@ const PublicInterview = () => {
             )}
           </div>
 
-          {/* Footer */}
-          <div className="mt-8 flex justify-between items-center text-[10px] text-[#94A3B8] font-bold tracking-wider">
-            <div className="flex items-center gap-1"><Shield className="h-3 w-3" /> Encrypted Connection</div>
-            <div>Vocalent v2.4.1</div>
-          </div>
+
         </div>
       </div>
     );
@@ -531,76 +536,122 @@ const PublicInterview = () => {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans relative">
         {/* Top Bar */}
-        <nav className="w-full px-8 py-5 flex items-center justify-between border-b border-[#E2E8F0] bg-white">
-          <div className="text-[11px] font-bold text-[#0A1128] tracking-widest uppercase">
-            QUESTION {currentQuestion + 1} OF {questions.length}
+        <nav className="w-full px-8 py-4 flex items-center justify-between border-b border-[#E2E8F0] bg-white relative">
+          <div className="flex items-center gap-6">
+            <Logo />
+            <div className="hidden md:block w-px h-5 bg-[#E2E8F0]"></div>
+            <div className="hidden md:flex flex-col">
+              <span className="text-[11px] font-bold text-[#64748B] tracking-wider uppercase">Candidate</span>
+              <span className="text-[13px] font-extrabold text-[#0A1128]">{candidateName}</span>
+            </div>
           </div>
-          <div className="px-4 py-2 bg-[#F1F5F9] rounded-lg text-[13px] font-mono font-bold text-[#0A1128] flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 text-[#64748B]" /> {formatTime(timer)}
+          
+          <div className="flex items-center gap-4">
+            <div className="text-[11px] font-bold text-[#64748B] tracking-wider uppercase">
+              Question {currentQuestion + 1} of {questions.length}
+            </div>
+            <div className="px-3 py-1.5 bg-[#F1F5F9] rounded-lg text-[13px] font-mono font-bold text-[#0A1128] flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-[#64748B]" /> {formatTime(timer)}
+            </div>
+          </div>
+
+          {/* Thin progress bar line below nav */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#F1F5F9]">
+            <div 
+              className="h-full bg-[#0047b3] transition-all duration-300" 
+              style={{ width: `${((currentQuestion + 1) / Math.max(1, questions.length)) * 100}%` }}
+            />
           </div>
         </nav>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col justify-center max-w-4xl w-full mx-auto px-6 py-12 relative">
-          
-          {/* AI Badge */}
-          <div className="flex justify-center mb-12">
-            <div className="px-4 py-1.5 rounded-full bg-[#EEF2FF] text-[10px] font-bold text-[#0047b3] tracking-widest uppercase flex items-center gap-2">
-              <div className={`w-1.5 h-1.5 rounded-full bg-[#0047b3] ${isSpeaking ? 'animate-pulse' : ''}`}></div>
-              {isSpeaking ? 'AI SPEAKING...' : 'LISTENING...'}
-            </div>
-          </div>
-
-          <div className="flex gap-8 relative">
-            {/* Sidebar Indicator */}
-            <div className="hidden sm:block w-32 shrink-0 border-l-[3px] border-[#0047b3] pl-4 self-start mt-2">
-              <div className="text-[9px] font-bold text-[#0047b3] tracking-widest uppercase mb-1">STAGE</div>
-              <div className="text-[12px] font-extrabold text-[#0A1128] capitalize">
-                {questions[currentQuestion]?.category?.toLowerCase() || (currentQuestion < 3 ? "Technical Evaluation" : currentQuestion < 6 ? "Behavioral Fit" : "Onboarding")}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
+          {/* Card Container */}
+          <div className="bg-white rounded-[24px] border border-[#E2E8F0] shadow-[0_8px_30px_rgb(0,0,0,0.02)] p-8 md:p-12 max-w-3xl w-full flex flex-col gap-8">
+            
+            {/* Header Stage Badge & Status Indicator */}
+            <div className="flex justify-between items-center">
+              <div className="px-3 py-1 rounded-full bg-[#EEF2FF] text-[10px] font-extrabold text-[#0047b3] tracking-widest uppercase">
+                {questions[currentQuestion]?.category || "TECHNICAL EVALUATION"}
+              </div>
+              
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F1F5F9] text-[10px] font-bold text-[#64748B] tracking-wider uppercase">
+                <div className={`w-1.5 h-1.5 rounded-full ${isSpeaking ? 'bg-[#0047b3] animate-pulse' : 'bg-[#10B981]'}`} />
+                {isSpeaking ? 'AI Speaking' : 'Listening'}
               </div>
             </div>
 
-            {/* Question Text */}
-            <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#0A1128] leading-[1.2] tracking-tight mb-16">
+            {/* Question Area */}
+            <div className="space-y-4">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] leading-relaxed tracking-tight">
                 {typeof questions[currentQuestion] === 'string' ? questions[currentQuestion] : questions[currentQuestion]?.text}
-              </h1>
+              </h2>
+            </div>
 
-              {/* Minimal Transcript Feedback */}
-              <div className="text-center text-[#94A3B8] text-[13px] font-medium h-10">
-                {currentResponse ? (
-                  <span className="text-[#64748B] italic">"{currentResponse.length > 60 ? currentResponse.substring(currentResponse.length - 60) + "..." : currentResponse}"</span>
+            {/* Audio Feedback & Waveform section */}
+            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-6 flex flex-col items-center justify-center min-h-[140px] relative overflow-hidden gap-4">
+              {/* Waveform visualization */}
+              <div className="flex items-center justify-center gap-1 h-8">
+                {isMuted ? (
+                  <span className="text-[11px] font-bold text-[#C92A2A] tracking-wider uppercase flex items-center gap-1">
+                    <MicOff className="h-4 w-4" /> Microphone Muted
+                  </span>
+                ) : isSpeaking ? (
+                  <div className="flex justify-center items-center gap-1.5 h-6">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#0047b3] animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#0047b3] animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#0047b3] animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
                 ) : (
-                  <span>Waiting for audio transcription...</span>
+                  <>
+                    {waveBars.slice(0, 12).map((h, i) => (
+                      <div 
+                        key={i} 
+                        className="w-1 bg-[#0047b3] rounded-full transition-all duration-75" 
+                        style={{ height: `${Math.max(4, h * 0.7)}px` }} 
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Transcription Text */}
+              <div className="text-center text-[13px] font-medium max-w-md">
+                {isMuted ? (
+                  <span className="text-[#94A3B8]">Your microphone is muted. Click unmute to speak.</span>
+                ) : currentResponse ? (
+                  <span className="text-[#334155] font-semibold italic">"{currentResponse}"</span>
+                ) : (
+                  <span className="text-[#94A3B8] animate-pulse">Waiting for audio transcription...</span>
                 )}
               </div>
             </div>
+
+            {/* Controls Area */}
+            <div className="flex items-center justify-between gap-4 pt-6 border-t border-[#E2E8F0]">
+              <button 
+                onClick={() => setIsMuted(!isMuted)}
+                className={`flex items-center gap-2 px-6 py-3.5 rounded-xl border text-[13px] font-bold tracking-wider transition-colors ${
+                  isMuted 
+                    ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#C92A2A] hover:bg-[#FEE2E2]' 
+                    : 'bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC]'
+                }`}
+              >
+                {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isMuted ? 'UNMUTE' : 'MUTE'}
+              </button>
+
+              <button 
+                onClick={currentQuestion < questions.length - 1 ? handleNextOrComplete : completeInterview}
+                disabled={loading}
+                className="flex items-center gap-2 px-8 py-3.5 bg-[#C92A2A] hover:bg-[#b02222] disabled:opacity-50 text-white rounded-xl font-bold text-[13px] transition-colors shadow-sm"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4 rotate-[135deg]" />}
+                {currentQuestion < questions.length - 1 ? 'Next Question' : 'End Interview'}
+              </button>
+            </div>
+
           </div>
-        </div>
-
-        {/* Bottom Control Bar */}
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-[#E2E8F0] p-3 flex items-center gap-2">
-          <button 
-            onClick={() => setIsMuted(!isMuted)}
-            className="w-20 py-3 flex flex-col items-center justify-center gap-1.5 rounded-xl hover:bg-[#F8FAFC] text-[#64748B] transition-colors"
-          >
-            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-            <span className="text-[9px] font-bold tracking-widest uppercase">{isMuted ? 'UNMUTE' : 'MUTE'}</span>
-          </button>
-
-          <button 
-            onClick={currentQuestion < questions.length - 1 ? handleNextOrComplete : completeInterview}
-            disabled={loading}
-            className="w-40 py-3.5 bg-[#C92A2A] hover:bg-[#b02222] rounded-xl text-white flex items-center justify-center gap-2 font-bold text-[13px] transition-colors shadow-sm"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4 rotate-[135deg]" />}
-            {currentQuestion < questions.length - 1 ? 'Next Question' : 'End Interview'}
-          </button>
-
-          <button className="w-20 py-3 flex flex-col items-center justify-center gap-1.5 rounded-xl hover:bg-[#F8FAFC] text-[#64748B] transition-colors">
-            <Settings className="h-5 w-5" />
-            <span className="text-[9px] font-bold tracking-widest uppercase">SETTINGS</span>
-          </button>
         </div>
       </div>
     );
@@ -628,29 +679,9 @@ const PublicInterview = () => {
               Interview Submitted
             </h1>
             
-            <p className="text-[15px] text-[#475569] leading-relaxed mb-8 relative z-10">
+            <p className="text-[15px] text-[#475569] leading-relaxed mb-0 relative z-10">
               Thank you, <span className="font-bold text-[#0A1128]">{candidateName}</span>. Your interview has been successfully submitted. The recruitment team will be in touch shortly.
             </p>
-
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FFF7ED] text-[#C2410C] mb-10 relative z-10">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#EA580C] animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">AI-Enhanced Verification Active</span>
-            </div>
-
-            <Button 
-              onClick={() => navigate("/")}
-              className="w-full bg-[#0047b3] hover:bg-[#003399] text-white font-bold py-6 rounded-xl text-[15px] shadow-md transition-colors relative z-10"
-            >
-              Return to Homepage
-            </Button>
-            
-            <p className="text-[10px] text-[#94A3B8] font-medium mt-6 relative z-10">
-              A confirmation email has been sent to your inbox.
-            </p>
-          </div>
-
-          <div className="mt-12 text-[9px] font-bold text-[#94A3B8] tracking-widest uppercase flex items-center gap-2">
-            VOCALENT <span className="text-[#CBD5E1]">•</span> COGNITIVE RECRUITMENT SUITE
           </div>
         </div>
       </div>
