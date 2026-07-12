@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Download as DownloadIcon, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { cleanTranscriptText } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 
 const Download = () => {
@@ -83,9 +84,15 @@ const Download = () => {
       ];
 
       if (includeOptions.sentiment) {
-        rows.push(["Sentiment Score", `+${interview.sentimentScore?.toFixed(2) || "0.00"}`]);
-        rows.push(["Confidence Level", interview.confidence || "Medium"]);
-        rows.push(["Red Flags", interview.redFlags?.length > 0 ? String(interview.redFlags.length) : "None"]);
+        if (interview.aiAnalyzed) {
+          rows.push(["Competence Score", `${interview.sentimentScore?.toFixed(2) || "0.00"} / 1.00`]);
+          rows.push(["Confidence Level", interview.confidence || "Medium"]);
+        } else {
+          rows.push(["Competence Score", "Not analyzed"]);
+          rows.push(["Confidence Level", "N/A"]);
+        }
+        const flags: string[] = interview.redFlags || [];
+        rows.push(["Red Flags", flags.length > 0 ? flags.join(" | ") : "None"]);
       }
 
       if (includeOptions.summary) {
@@ -97,7 +104,7 @@ const Download = () => {
         rows.push([]);
         rows.push(["Speaker", "Utterance"]);
         interview.transcript.forEach((entry: any) => {
-          rows.push([entry.speaker || "N/A", entry.text || "N/A"]);
+          rows.push([entry.speaker || "N/A", cleanTranscriptText(entry.text) || "N/A"]);
         });
       }
 
@@ -164,15 +171,40 @@ const Download = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(11);
         doc.setTextColor(15, 23, 42);
-        doc.text(`Sentiment Score: +${interview.sentimentScore?.toFixed(2) || "0.00"}`, 15, y);
-        y += 6;
-        doc.text(`Confidence Level: ${interview.confidence || "Medium"}`, 15, y);
-        y += 6;
-        doc.text(`Red Flags: ${interview.redFlags?.length > 0 ? String(interview.redFlags.length) : "None"}`, 15, y);
-        y += 15;
+        if (interview.aiAnalyzed) {
+          doc.text(`Competence Score: ${interview.sentimentScore?.toFixed(2) || "0.00"} / 1.00`, 15, y);
+          y += 6;
+          doc.text(`Confidence Level: ${interview.confidence || "Medium"}`, 15, y);
+          y += 6;
+        } else {
+          doc.text("Competence Score: Not analyzed", 15, y);
+          y += 6;
+        }
+
+        const flags: string[] = interview.redFlags || [];
+        if (flags.length > 0) {
+          doc.text(`Red Flags (${flags.length}):`, 15, y);
+          y += 6;
+          doc.setFontSize(10);
+          doc.setTextColor(120, 53, 15); // amber-900
+          flags.forEach((flag) => {
+            const flagLines = doc.splitTextToSize(`- ${flag}`, 175);
+            if (y + flagLines.length * 5 > 280) { doc.addPage(); y = 20; }
+            doc.text(flagLines, 18, y);
+            y += flagLines.length * 5;
+          });
+          doc.setFontSize(11);
+          doc.setTextColor(15, 23, 42);
+          y += 4;
+        } else {
+          doc.text("Red Flags: None", 15, y);
+          y += 6;
+        }
+        y += 9;
       }
 
       if (includeOptions.summary) {
+        if (y > 250) { doc.addPage(); y = 20; }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
         doc.setTextColor(0, 71, 179);
@@ -182,12 +214,15 @@ const Download = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         doc.setTextColor(71, 85, 105); // #475569
-        
+
         const summaryLines = doc.splitTextToSize(interview.aiSummary || "No summary available.", 180);
+        if (y + summaryLines.length * 5 > 280) { doc.addPage(); y = 20; }
         doc.text(summaryLines, 15, y);
         y += (summaryLines.length * 5) + 10;
 
         if (interview.recommendations) {
+          const recLines = doc.splitTextToSize(interview.recommendations, 180);
+          if (y + recLines.length * 5 + 6 > 280) { doc.addPage(); y = 20; }
           doc.setFont("helvetica", "bold");
           doc.setFontSize(11);
           doc.setTextColor(10, 17, 40);
@@ -195,7 +230,6 @@ const Download = () => {
           y += 6;
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
-          const recLines = doc.splitTextToSize(interview.recommendations, 180);
           doc.text(recLines, 15, y);
           y += (recLines.length * 5) + 15;
         }
@@ -215,7 +249,7 @@ const Download = () => {
 
         doc.setFontSize(10);
         interview.transcript.forEach((entry: any) => {
-          const entryLines = doc.splitTextToSize(entry.text, 150);
+          const entryLines = doc.splitTextToSize(cleanTranscriptText(entry.text) || " ", 150);
           
           if (y + (entryLines.length * 5) > 280) {
             doc.addPage();

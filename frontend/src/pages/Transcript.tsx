@@ -5,6 +5,7 @@ import { Logo } from "@/components/Logo";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Download, ArrowLeft, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { cleanTranscriptText } from "@/lib/utils";
 import { toast } from "sonner";
 
 const Transcript = () => {
@@ -107,7 +108,7 @@ const Transcript = () => {
                       <div className="text-xs">{formatTime(item.timestamp || Date.now())}</div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm sm:text-base break-words">{item.text}</p>
+                      <p className="text-sm sm:text-base break-words">{cleanTranscriptText(item.text)}</p>
                     </div>
                   </div>
                 ))

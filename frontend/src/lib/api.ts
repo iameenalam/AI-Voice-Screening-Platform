@@ -177,10 +177,10 @@ class ApiClient {
   }
 
   // Interviews
-  async generateQuestions(role: string) {
-    return this.request<{ questions: string[] }>('/interviews/generate-questions', {
+  async generateQuestions(role: string, regenerate = false) {
+    return this.request<{ questions: string[]; aiGenerated?: boolean; cached?: boolean }>('/interviews/generate-questions', {
       method: 'POST',
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, regenerate }),
     });
   }
 
@@ -207,6 +207,13 @@ class ApiClient {
     return this.request<any>(`/interviews/${interviewId}/transcript`, {
       method: 'POST',
       body: JSON.stringify({ speaker, text, timestamp, questionIndex }),
+    });
+  }
+
+  async addAnswerAudio(interviewId: string, questionIndex: number, audioUrl: string, durationMs: number) {
+    return this.request<{ ok: boolean }>(`/interviews/${interviewId}/answer-audio`, {
+      method: 'POST',
+      body: JSON.stringify({ questionIndex, audioUrl, durationMs }),
     });
   }
 
@@ -321,6 +328,13 @@ class ApiClient {
     return this.publicRequest<any>(`/interviews/public/${token}/transcript`, {
       method: 'POST',
       body: JSON.stringify({ speaker, text, timestamp, questionIndex }),
+    });
+  }
+
+  async addPublicAnswerAudio(token: string, questionIndex: number, audioUrl: string, durationMs: number) {
+    return this.publicRequest<{ ok: boolean }>(`/interviews/public/${token}/answer-audio`, {
+      method: 'POST',
+      body: JSON.stringify({ questionIndex, audioUrl, durationMs }),
     });
   }
 

@@ -5,6 +5,7 @@ import { Logo } from "@/components/Logo";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckCircle2, TrendingUp, FileText, AlertCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { cleanTranscriptText } from "@/lib/utils";
 import { toast } from "sonner";
 
 const Results = () => {
@@ -37,6 +38,8 @@ const Results = () => {
       setInterview({
         ...result.data,
         sentimentScore: result.data.sentimentScore || 0,
+        aiAnalyzed: result.data.aiAnalyzed ?? false,
+        analysisCoverage: result.data.analysisCoverage ?? 0,
         confidence: result.data.confidence || 'Medium',
         redFlags: result.data.redFlags || [],
         aiSummary: result.data.aiSummary || 'Interview completed successfully. Review the transcript for details.',
@@ -108,11 +111,23 @@ const Results = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 bg-[#EBFDF5] border border-[#D1FAE5] rounded-xl text-left">
                     <h3 className="font-bold text-[10px] uppercase tracking-wider text-[#047857] mb-1">
-                      Sentiment Score
+                      Competence Score
                     </h3>
-                    <p className="text-2xl font-black text-[#10B981]">
-                      +{interview.sentimentScore?.toFixed(2) || '0.00'}
-                    </p>
+                    {interview.aiAnalyzed ? (
+                      <>
+                        <p className="text-2xl font-black text-[#10B981]">
+                          {interview.sentimentScore?.toFixed(2) || '0.00'}
+                          <span className="text-sm font-bold text-[#047857]/60"> / 1.00</span>
+                        </p>
+                        {interview.analysisCoverage < 1 && (
+                          <p className="text-[10px] text-[#047857]/70 mt-1 font-semibold">
+                            {Math.round((interview.analysisCoverage || 0) * 100)}% of answers analyzed
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-base font-bold text-[#64748B]">Not analyzed</p>
+                    )}
                   </div>
 
                   <div className="p-4 bg-[#E6F0FF] border border-[#B3D1FF] rounded-xl text-left">
@@ -120,7 +135,7 @@ const Results = () => {
                       Confidence
                     </h3>
                     <p className="text-2xl font-black text-[#0066FF]">
-                      {interview.confidence || 'Medium'}
+                      {interview.aiAnalyzed ? (interview.confidence || 'Medium') : '—'}
                     </p>
                   </div>
 
@@ -133,6 +148,22 @@ const Results = () => {
                     </p>
                   </div>
                 </div>
+
+                {interview.redFlags?.length > 0 && (
+                  <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl">
+                    <h3 className="font-bold text-[10px] uppercase tracking-wider text-amber-700 mb-2">
+                      Flagged Concerns
+                    </h3>
+                    <ul className="space-y-1.5">
+                      {interview.redFlags.map((flag: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-[#78350F] font-medium leading-relaxed">
+                          <span className="text-amber-500 mt-0.5">•</span>
+                          <span>{flag}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -148,12 +179,12 @@ const Results = () => {
                     <div key={index} className="space-y-3">
                       <div className="flex items-start gap-2.5 p-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl">
                         <span className="text-xs font-bold text-[#0066FF] mt-0.5">Q:</span>
-                        <p className="flex-1 text-xs font-bold text-[#0A1128] leading-relaxed">{item.question}</p>
+                        <p className="flex-1 text-xs font-bold text-[#0A1128] leading-relaxed">{cleanTranscriptText(item.question)}</p>
                       </div>
                       {item.answers.map((answer: string, aIndex: number) => (
                         <div key={aIndex} className="flex items-start gap-2.5 pl-6">
                           <span className="text-xs font-bold text-[#64748B] mt-0.5">A:</span>
-                          <p className="flex-1 text-xs font-semibold text-[#475569] leading-relaxed">{answer}</p>
+                          <p className="flex-1 text-xs font-semibold text-[#475569] leading-relaxed">{cleanTranscriptText(answer)}</p>
                         </div>
                       ))}
                     </div>

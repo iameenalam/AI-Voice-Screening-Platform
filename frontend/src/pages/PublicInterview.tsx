@@ -8,7 +8,16 @@ import {
   Clock, Shield, MicOff, Settings, Check, Phone
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { uploadFiles } from "@/lib/uploadthing";
 import { toast } from "sonner";
+
+// Sentinel posted when a question produced no transcribable audio. The backend
+// recognises this and excludes it from analysis (kept in sync with the server).
+const NO_RESPONSE = '[[no_response]]';
+
+const speechRecognitionSupported = () =>
+  typeof window !== 'undefined' &&
+  ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
 
 type Step = 'loading' | 'error' | 'landing' | 'mictest_init' | 'mictest_ready' | 'interview' | 'completed';
 
@@ -50,10 +59,32 @@ const PublicInterview = () => {
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMutedRef = useRef(isMuted);
+  const recognitionRef = useRef<any>(null);
+  // Tracks whether the SpeechRecognition instance is currently running, so
+  // start() is never called while it's already active (that throws
+  // InvalidStateError — the mute toggle and the TTS pause/resume logic can
+  // both try to start it around the same time).
+  const recognitionActiveRef = useRef(false);
+  // True while the AI question TTS is playing (recognition is intentionally
+  // paused then) and a mirror of `step`, so the onend restart logic can run
+  // outside React state/closures.
+  const aiSpeakingRef = useRef(false);
+  const stepRef = useRef<Step>('loading');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingStartRef = useRef<number>(0);
+  const pendingUploadsRef = useRef<Promise<void>[]>([]);
 
-  // Sync mute ref
+  // Sync mute ref, and honour mute at the microphone level. Stopping speech
+  // recognition alone does NOT stop the MediaRecorder, so without this a
+  // "muted" answer would still be recorded, uploaded, transcribed and scored.
+  // Disabling the audio tracks makes the captured audio silent.
   useEffect(() => {
     isMutedRef.current = isMuted;
+    const tracks = mediaStreamRef.current?.getAudioTracks?.() || [];
+    tracks.forEach((t) => {
+      t.enabled = !isMuted;
+    });
   }, [isMuted]);
 
   // Pause / Resume speech recognition on mute toggle
@@ -66,11 +97,7 @@ const PublicInterview = () => {
           console.error("Error stopping recognition:", e);
         }
       } else {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error("Error starting recognition:", e);
-        }
+        safeStartRecognition();
       }
     }
   }, [isMuted, recognition, step]);
@@ -84,6 +111,10 @@ const PublicInterview = () => {
     loadInterview();
     return () => stopRecording();
   }, [token]);
+
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
   useEffect(() => {
     if (step === 'interview') {
@@ -181,9 +212,11 @@ const PublicInterview = () => {
       };
       checkAudioLevel();
 
-      // Automatically succeed test after 3 seconds if voice detected
+      // Automatically succeed test after 3 seconds if voice detected.
+      // Use the local `detectedVoice` (mutated by checkAudioLevel) rather than
+      // the micHealthy state, which is stale inside this closure.
       setTimeout(() => {
-        if (detectedVoice || micHealthy) {
+        if (detectedVoice) {
           setStep('mictest_ready');
         } else {
           setMicTestRunning(false);
@@ -226,15 +259,41 @@ const PublicInterview = () => {
         if (e.error !== 'aborted') console.error('Speech recognition error', e.error);
       };
 
+      rec.onstart = () => { recognitionActiveRef.current = true; };
+      rec.onend = () => {
+        recognitionActiveRef.current = false;
+        // Chrome ends continuous recognition on its own after a few seconds of
+        // silence. Restart it so the live caption / fallback transcript keeps
+        // working mid-answer — but don't fight the intentional pause during the
+        // AI's TTS or while muted.
+        if (stepRef.current === 'interview' && !isMutedRef.current && !aiSpeakingRef.current) {
+          setTimeout(() => resumeRecognition(), 300);
+        }
+      };
+
       rec.start();
+      recognitionRef.current = rec;
       setRecognition(rec);
+    } else {
+      toast.error('Voice transcription is not supported in this browser. Please use Chrome or Edge.');
     }
   };
 
   const beginInterview = async () => {
     if (!token) return;
+
+    // Block browsers that cannot transcribe, rather than silently running an
+    // interview that produces an empty transcript.
+    if (!speechRecognitionSupported()) {
+      const msg = "Your browser doesn't support voice transcription. Please open this link in Google Chrome or Microsoft Edge.";
+      toast.error(msg);
+      setInterviewError(msg);
+      setStep('error');
+      return;
+    }
+
     setLoading(true);
-    
+
     // Call API to mark as started
     const result = await api.startPublicInterview(token);
     
@@ -268,16 +327,122 @@ const PublicInterview = () => {
     speakQuestion(qText);
   };
 
+  // Pause recognition while the AI is speaking so the TTS audio isn't captured
+  // and transcribed as the candidate's answer (echo loop). Resume afterwards.
+  const pauseRecognition = () => {
+    try { recognitionRef.current?.stop(); } catch (e) { /* noop */ }
+  };
+  // Only calls start() when the recognizer isn't already running — calling it
+  // while active throws InvalidStateError. Guards against the mute toggle and
+  // the TTS pause/resume both trying to (re)start it around the same time.
+  const safeStartRecognition = () => {
+    if (recognitionActiveRef.current) return;
+    try {
+      recognitionRef.current?.start();
+    } catch (e) {
+      // race: start() was already called and onstart hasn't fired yet
+    }
+  };
+  const resumeRecognition = () => {
+    if (isMutedRef.current) return;
+    safeStartRecognition();
+  };
+
+  // --- Answer audio recording ----------------------------------------------
+  // Each answer is also recorded with MediaRecorder (reusing the mic-test
+  // stream) and uploaded, so the backend can transcribe it accurately for
+  // scoring. The browser speech recognition above stays as the live caption
+  // and as the fallback text when the upload or transcription fails.
+
+  const pickRecorderMime = () => {
+    if (typeof MediaRecorder === 'undefined') return '';
+    for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']) {
+      if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  };
+
+  const startAnswerRecording = () => {
+    const stream = mediaStreamRef.current;
+    if (!stream || typeof MediaRecorder === 'undefined') return;
+    if (mediaRecorderRef.current?.state === 'recording') return;
+    try {
+      const mime = pickRecorderMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recordedChunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      rec.start(1000); // collect chunks so a crash loses at most 1s
+      mediaRecorderRef.current = rec;
+      recordingStartRef.current = Date.now();
+    } catch (e) {
+      console.warn('Answer recording unavailable:', e);
+    }
+  };
+
+  const stopAnswerRecording = (): Promise<Blob | null> =>
+    new Promise((resolve) => {
+      const rec = mediaRecorderRef.current;
+      if (!rec || rec.state === 'inactive') return resolve(null);
+      rec.onstop = () => {
+        const chunks = recordedChunksRef.current;
+        recordedChunksRef.current = [];
+        resolve(chunks.length ? new Blob(chunks, { type: rec.mimeType || 'audio/webm' }) : null);
+      };
+      try {
+        rec.stop();
+      } catch {
+        resolve(null);
+      }
+    });
+
+  const uploadAnswerAudio = async (qIndex: number, blob: Blob | null, durationMs: number) => {
+    if (!token || !blob || blob.size < 1024) return; // skip empty/near-empty clips
+    try {
+      const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+      const file = new File([blob], `answer-q${qIndex + 1}.${ext}`, { type: blob.type || 'audio/webm' });
+      const uploaded = await uploadFiles('audioUploader', { files: [file] });
+      const url = (uploaded?.[0] as any)?.ufsUrl || uploaded?.[0]?.url;
+      if (url) await api.addPublicAnswerAudio(token, qIndex, url, durationMs);
+    } catch (e) {
+      // Non-fatal: the browser transcript remains the fallback for scoring.
+      console.warn('Answer audio upload failed:', e);
+    }
+  };
+
   const speakQuestion = (text: string) => {
-    if (isMuted) return;
+    if (isMuted) {
+      // TTS is skipped, so the answer phase starts immediately.
+      startAnswerRecording();
+      return;
+    }
     if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
-    
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+
+    utterance.onstart = () => {
+      // Set before pausing so the recognition onend fired by pauseRecognition()
+      // sees the AI is speaking and does not auto-restart mid-question.
+      aiSpeakingRef.current = true;
+      setIsSpeaking(true);
+      pauseRecognition();
+    };
+    // Start recording only once the AI stops speaking, so the recording (like
+    // the recognition) doesn't capture the TTS question audio.
+    utterance.onend = () => {
+      aiSpeakingRef.current = false;
+      setIsSpeaking(false);
+      resumeRecognition();
+      startAnswerRecording();
+    };
+    utterance.onerror = () => {
+      aiSpeakingRef.current = false;
+      setIsSpeaking(false);
+      resumeRecognition();
+      startAnswerRecording();
+    };
 
     speechSynthesisRef.current = utterance;
     window.speechSynthesis.speak(utterance);
@@ -291,6 +456,9 @@ const PublicInterview = () => {
     stopSpeaking();
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch (e) { /* noop */ }
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(t => t.stop());
     }
@@ -300,21 +468,33 @@ const PublicInterview = () => {
 
   const handleNextOrComplete = async () => {
     if (!token) return;
-    
+
+    // Stop the answer recording first so the next question's TTS is never
+    // captured in this answer's audio.
+    const answeredIndex = currentQuestion;
+    const durationMs = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
+    const blobPromise = stopAnswerRecording();
+
     let finalResponse = accumulatedTranscriptRef.current.trim();
     if (!finalResponse && currentResponse.trim()) {
       finalResponse = currentResponse.trim();
     }
-    
-    if (!finalResponse && !isSpeaking) {
-      // For testing/mocking, allow advancing without speaking if we just want to go through UI
-      finalResponse = "Candidate provided no transcribed audio.";
+
+    // No transcribable audio: post a sentinel the backend excludes from
+    // analysis, rather than fabricated text scored as a real answer.
+    if (!finalResponse) {
+      finalResponse = NO_RESPONSE;
     }
 
     setLoading(true);
     try {
-      await api.addPublicTranscriptEntry(token, 'Candidate', finalResponse, Date.now(), currentQuestion);
-      
+      await api.addPublicTranscriptEntry(token, 'Candidate', finalResponse, Date.now(), answeredIndex);
+
+      // Upload the recording in the background; completion waits for these.
+      pendingUploadsRef.current.push(
+        blobPromise.then((blob) => uploadAnswerAudio(answeredIndex, blob, durationMs))
+      );
+
       if (currentQuestion < questions.length - 1) {
         setCurrentQuestion(prev => prev + 1);
         await new Promise(r => setTimeout(r, 500));
@@ -333,9 +513,17 @@ const PublicInterview = () => {
     if (!token) return;
     stopRecording();
     setLoading(true);
+
+    // Let in-flight answer uploads finish before finalising, so the backend
+    // can transcribe them (bounded: a hung upload can't block completion).
+    await Promise.race([
+      Promise.allSettled(pendingUploadsRef.current),
+      new Promise((r) => setTimeout(r, 20000)),
+    ]);
+
     const result = await api.completePublicInterview(token);
     setLoading(false);
-    
+
     if (!result.error) {
       setStep('completed');
     } else {
@@ -641,8 +829,8 @@ const PublicInterview = () => {
                 {isMuted ? 'UNMUTE' : 'MUTE'}
               </button>
 
-              <button 
-                onClick={currentQuestion < questions.length - 1 ? handleNextOrComplete : completeInterview}
+              <button
+                onClick={handleNextOrComplete}
                 disabled={loading}
                 className="flex items-center gap-2 px-8 py-3.5 bg-[#C92A2A] hover:bg-[#b02222] disabled:opacity-50 text-white rounded-xl font-bold text-[13px] transition-colors shadow-sm"
               >
