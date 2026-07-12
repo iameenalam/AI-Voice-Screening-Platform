@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
-  ArrowLeft, MapPin, Briefcase, ExternalLink, 
+  ArrowLeft, ExternalLink,
   RefreshCw, Shield, Send, Check, Trash2, Edit2, Plus, Save, Menu
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
@@ -94,15 +94,18 @@ const ScreeningSetup = () => {
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
 
   useEffect(() => {
-    if (role && !location.state?.isMock) {
+    // Only generate for a real role — skip the transient 'NaN'/'Unknown'
+    // placeholder so we don't fire a redundant, paid generation call.
+    const isPlaceholderRole = !role || role === 'NaN' || role === 'Unknown';
+    if (!isPlaceholderRole && !location.state?.isMock) {
       loadSuggestedQuestions();
     }
   }, [role]);
 
-  const loadSuggestedQuestions = async () => {
+  const loadSuggestedQuestions = async (forceRegenerate = false) => {
     setGenerating(true);
     const queryRole = role === "Multiple Roles" ? "General Candidate" : role;
-    const result = await api.generateQuestions(queryRole);
+    const result = await api.generateQuestions(queryRole, forceRegenerate);
     setGenerating(false);
     
     if (result.data?.questions && result.data.questions.length > 0) {
@@ -235,14 +238,13 @@ const ScreeningSetup = () => {
                 <h1 className="text-4xl font-extrabold text-[#0A1128] tracking-tight">{name}</h1>
                 <h2 className="text-xl font-bold text-[#0066FF] mt-1">{role}</h2>
                 {!isBatch ? (
-                  <div className="flex items-center gap-3 mt-4">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                      <MapPin className="h-3.5 w-3.5" /> SAN FRANCISCO, CA
+                  email ? (
+                    <div className="flex items-center gap-3 mt-4">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide">
+                        {email}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E2E8F0]/60 text-[#475569] rounded-lg text-[11px] font-bold tracking-wide uppercase">
-                      <Briefcase className="h-3.5 w-3.5" /> 8+ YEARS EXP.
-                    </div>
-                  </div>
+                  ) : null
                 ) : (
                   <div className="flex items-center gap-3 mt-4">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E0F2FE] text-[#0369A1] rounded-lg text-[11px] font-bold tracking-wide uppercase">
@@ -276,11 +278,11 @@ const ScreeningSetup = () => {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFF7ED] border border-[#FFEDD5] rounded-lg text-[#C2410C]">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#EA580C]"></div>
-                  <span className="text-[10px] font-bold tracking-widest uppercase">Cognitive Engine Active</span>
+                  <span className="text-[10px] font-bold tracking-widest uppercase">AI Suggested — Editable</span>
                 </div>
                 <button 
                   className="flex items-center gap-1.5 text-[#0066FF] text-[13px] font-bold hover:underline"
-                  onClick={loadSuggestedQuestions}
+                  onClick={() => loadSuggestedQuestions(true)}
                   disabled={generating}
                 >
                   <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} /> Regenerate
@@ -387,50 +389,35 @@ const ScreeningSetup = () => {
           <div className="space-y-6 lg:sticky lg:top-8">
             
             {!isBatch ? (
-              <>
-                {/* Extracted Skills Card */}
-                <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-6 h-6 rounded-full bg-[#0066FF] flex items-center justify-center text-white">
-                      <Check className="h-4 w-4" strokeWidth={3} />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-[#0A1128]">Extracted Skills</h3>
+              <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">
+                <div className="flex items-center gap-3 mb-6 border-b border-[#E2E8F0] pb-4">
+                  <div className="w-8 h-8 rounded-xl bg-[#0066FF]/10 flex items-center justify-center text-[#0066FF]">
+                    <Check className="h-4 w-4" strokeWidth={3} />
                   </div>
-                  
-                  <div className="flex flex-wrap gap-2 mb-8">
-                    {['FIGMA', 'PROTOTYPING', 'USER RESEARCH', 'B2B SAAS', 'DESIGN SYSTEMS', 'HEURISTIC EVAL'].map(skill => (
-                      <span key={skill} className="px-2.5 py-1.5 bg-[#EEF2FF] text-[#0066FF] text-[10px] font-bold tracking-widest uppercase rounded-md">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
+                  <h3 className="text-[15px] font-bold text-[#0A1128]">Candidate</h3>
+                </div>
 
-                  <div className="bg-[#FFF7ED] border border-[#FFEDD5] rounded-xl p-5 relative">
-                    <div className="text-[10px] font-extrabold text-[#C2410C] tracking-widest uppercase mb-2">
-                      ARCHITECT'S NOTE
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <div className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase mb-0.5">Name</div>
+                    <div className="font-semibold text-[#0A1128]">{name}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase mb-0.5">Role</div>
+                    <div className="font-semibold text-[#0A1128]">{role}</div>
+                  </div>
+                  {email && (
+                    <div>
+                      <div className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase mb-0.5">Email</div>
+                      <div className="font-semibold text-[#0A1128] break-all">{email}</div>
                     </div>
-                    <p className="text-[12px] text-[#475569] leading-relaxed font-medium">
-                      Questions were weighted toward her 3-year tenure at <span className="font-bold text-[#0A1128]">Dropbox</span> where she led the redesign of the admin console.
-                    </p>
-                  </div>
-                </Card>
+                  )}
+                </div>
 
-                {/* Fit Score Card */}
-                <Card className="bg-[#0047b3] border-none rounded-2xl shadow-[0_8px_30px_rgba(0,71,179,0.25)] p-7 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                  
-                  <h3 className="text-white font-bold text-[15px] mb-2 relative z-10">Candidate Fit Score</h3>
-                  
-                  <div className="flex items-baseline gap-1 mb-4 relative z-10">
-                    <span className="text-white text-6xl font-black tracking-tight">94</span>
-                    <span className="text-white/80 text-xl font-bold">%</span>
-                  </div>
-                  
-                  <p className="text-white/80 text-[12px] leading-relaxed font-medium relative z-10">
-                    Sarah's portfolio case studies align 92% with our current technical roadmap for Q3.
-                  </p>
-                </Card>
-              </>
+                <p className="mt-6 text-[12px] text-[#64748B] leading-relaxed">
+                  The questions on the left are AI-suggested from the candidate's role and are fully editable before you send the invite.
+                </p>
+              </Card>
             ) : (
               /* Batch Summary Card */
               <Card className="bg-white border-none rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] p-7">

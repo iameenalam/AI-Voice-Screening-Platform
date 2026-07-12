@@ -8,6 +8,7 @@ import {
   VolumeX, CheckCircle2, Settings, PenTool, Check 
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { uploadFiles } from "@/lib/uploadthing";
 import { toast } from "sonner";
 
 const Interview = () => {
@@ -19,7 +20,6 @@ const Interview = () => {
   const [loading, setLoading] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timer, setTimer] = useState(0);
-  const [sentiment, setSentiment] = useState(0.5);
   const [questions, setQuestions] = useState<any[]>([]);
   const [interviewStarted, setInterviewStarted] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
@@ -41,6 +41,80 @@ const Interview = () => {
   const recognitionRestartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isRestartingRef = useRef<boolean>(false);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Live SpeechRecognition instance. speakQuestion reads this ref (not the
+  // `recognition` state) because the first question is spoken from a setTimeout
+  // closure captured before setRecognition runs — the state would still be null
+  // there, leaving Q1's TTS un-paused and echoed into the transcript.
+  const recognitionRef = useRef<any>(null);
+  // True while the AI is speaking a question; used to suspend recognition so
+  // the TTS audio isn't transcribed as the candidate's answer (echo loop).
+  const aiSpeakingRef = useRef<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingStartRef = useRef<number>(0);
+  const pendingUploadsRef = useRef<Promise<void>[]>([]);
+
+  // --- Answer audio recording ----------------------------------------------
+  // Each answer is also recorded with MediaRecorder (reusing the mic stream)
+  // and uploaded, so the backend can transcribe it accurately for scoring.
+  // The browser speech recognition stays as the live caption / fallback text.
+
+  const pickRecorderMime = () => {
+    if (typeof MediaRecorder === 'undefined') return '';
+    for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']) {
+      if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  };
+
+  const startAnswerRecording = () => {
+    const stream = mediaStreamRef.current;
+    if (!stream || typeof MediaRecorder === 'undefined') return;
+    if (mediaRecorderRef.current?.state === 'recording') return;
+    try {
+      const mime = pickRecorderMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recordedChunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      rec.start(1000); // collect chunks so a crash loses at most 1s
+      mediaRecorderRef.current = rec;
+      recordingStartRef.current = Date.now();
+    } catch (e) {
+      console.warn('Answer recording unavailable:', e);
+    }
+  };
+
+  const stopAnswerRecording = (): Promise<Blob | null> =>
+    new Promise((resolve) => {
+      const rec = mediaRecorderRef.current;
+      if (!rec || rec.state === 'inactive') return resolve(null);
+      rec.onstop = () => {
+        const chunks = recordedChunksRef.current;
+        recordedChunksRef.current = [];
+        resolve(chunks.length ? new Blob(chunks, { type: rec.mimeType || 'audio/webm' }) : null);
+      };
+      try {
+        rec.stop();
+      } catch {
+        resolve(null);
+      }
+    });
+
+  const uploadAnswerAudio = async (qIndex: number, blob: Blob | null, durationMs: number) => {
+    if (!interviewId || !blob || blob.size < 1024) return; // skip empty clips
+    try {
+      const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+      const file = new File([blob], `answer-q${qIndex + 1}.${ext}`, { type: blob.type || 'audio/webm' });
+      const uploaded = await uploadFiles('audioUploader', { files: [file] });
+      const url = (uploaded?.[0] as any)?.ufsUrl || uploaded?.[0]?.url;
+      if (url) await api.addAnswerAudio(interviewId, qIndex, url, durationMs);
+    } catch (e) {
+      // Non-fatal: the browser transcript remains the fallback for scoring.
+      console.warn('Answer audio upload failed:', e);
+    }
+  };
 
   useEffect(() => {
     if (!interviewId) {
@@ -191,7 +265,11 @@ const Interview = () => {
           if (recognitionRestartTimeoutRef.current) {
             clearTimeout(recognitionRestartTimeoutRef.current);
           }
-          
+
+          // Don't auto-restart while the AI is speaking — speakQuestion resumes
+          // recognition when the question finishes.
+          if (aiSpeakingRef.current) return;
+
           const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
           
           if (shouldRestart && !isRestartingRef.current) {
@@ -213,9 +291,11 @@ const Interview = () => {
         };
 
         recognition.start();
+        recognitionRef.current = recognition;
         setRecognition(recognition);
         
         const forceRestartInterval = setInterval(() => {
+          if (aiSpeakingRef.current) return;
           const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
           if (shouldRestart) {
             try { recognition.stop(); } catch {}
@@ -223,8 +303,9 @@ const Interview = () => {
             clearInterval(forceRestartInterval);
           }
         }, 55000);
-        
+
         healthCheckIntervalRef.current = setInterval(() => {
+          if (aiSpeakingRef.current) return;
           const timeSinceLastTranscript = Date.now() - lastTranscriptTimeRef.current;
           const shouldRestart = document.querySelector('[data-interview-active="true"]') !== null;
           if (timeSinceLastTranscript > 10000 && shouldRestart) {
@@ -249,7 +330,11 @@ const Interview = () => {
   };
 
   const speakQuestion = (questionText: string) => {
-    if (isMuted) return;
+    if (isMuted) {
+      // TTS is skipped, so the answer phase starts immediately.
+      startAnswerRecording();
+      return;
+    }
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
@@ -268,9 +353,23 @@ const Interview = () => {
     );
     if (preferredVoice) utterance.voice = preferredVoice;
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    const resumeAfterSpeaking = () => {
+      setIsSpeaking(false);
+      aiSpeakingRef.current = false;
+      if (!isMuted) {
+        try { recognitionRef.current?.start(); } catch (e) { /* health-check will retry */ }
+      }
+      // The AI finished the question — record the answer from here.
+      startAnswerRecording();
+    };
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      aiSpeakingRef.current = true;
+      try { recognitionRef.current?.stop(); } catch (e) { /* noop */ }
+    };
+    utterance.onend = resumeAfterSpeaking;
+    utterance.onerror = resumeAfterSpeaking;
 
     speechSynthesisRef.current = utterance;
     window.speechSynthesis.speak(utterance);
@@ -280,19 +379,6 @@ const Interview = () => {
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
-  };
-
-  const analyzeSentiment = (text: string): number => {
-    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'enjoy', 'happy', 'successful', 'achieved', 'proud', 'excited', 'passionate', 'innovative'];
-    const negativeWords = ['bad', 'terrible', 'hate', 'difficult', 'problem', 'failed', 'struggle', 'unfortunately', 'disappointed'];
-    
-    const words = text.toLowerCase().split(/\s+/);
-    let score = 0.5;
-    words.forEach(word => {
-      if (positiveWords.includes(word)) score += 0.05;
-      if (negativeWords.includes(word)) score -= 0.05;
-    });
-    return Math.max(0.1, Math.min(0.9, score));
   };
 
   const askQuestion = async (index: number) => {
@@ -310,26 +396,34 @@ const Interview = () => {
 
   const handleNextQuestion = async () => {
     if (!interviewId) return;
-    
+
     let finalResponse = accumulatedTranscriptRef.current.trim();
     if (!finalResponse && currentResponse.trim()) {
       finalResponse = currentResponse.trim();
       accumulatedTranscriptRef.current = finalResponse;
     }
-    
+
     if (!finalResponse) {
       toast.error("Please provide a response before moving to the next question");
       return;
     }
 
+    // Stop the answer recording first so the next question's TTS is never
+    // captured in this answer's audio.
+    const answeredIndex = currentQuestion;
+    const durationMs = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
+    const blobPromise = stopAnswerRecording();
+
     setLoading(true);
-    
+
     try {
-      await api.addTranscriptEntry(interviewId, 'Candidate', finalResponse, Date.now(), currentQuestion);
-      
-      const sentimentScore = analyzeSentiment(finalResponse);
-      setSentiment(sentimentScore);
-      
+      await api.addTranscriptEntry(interviewId, 'Candidate', finalResponse, Date.now(), answeredIndex);
+
+      // Upload the recording in the background; completion waits for these.
+      pendingUploadsRef.current.push(
+        blobPromise.then((blob) => uploadAnswerAudio(answeredIndex, blob, durationMs))
+      );
+
       const newResponses = [...responses];
       newResponses[currentQuestion] = finalResponse;
       setResponses(newResponses);
@@ -354,6 +448,9 @@ const Interview = () => {
     if (recognitionRestartTimeoutRef.current) clearTimeout(recognitionRestartTimeoutRef.current);
     if (healthCheckIntervalRef.current) clearInterval(healthCheckIntervalRef.current);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch (e) { /* noop */ }
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track: any) => track.stop());
     }
@@ -367,9 +464,26 @@ const Interview = () => {
 
   const completeInterview = async () => {
     if (!interviewId) return;
+
+    // "End Interview" can cut mid-answer: capture the in-progress recording so
+    // the backend can still transcribe the last (unposted) answer.
+    const durationMs = recordingStartRef.current ? Date.now() - recordingStartRef.current : 0;
+    const blobPromise = stopAnswerRecording();
+    const lastIndex = currentQuestion;
     stopRecording();
-    
+
     setLoading(true);
+    pendingUploadsRef.current.push(
+      blobPromise.then((blob) => uploadAnswerAudio(lastIndex, blob, durationMs))
+    );
+
+    // Let in-flight answer uploads finish before finalising, so the backend
+    // can transcribe them (bounded: a hung upload can't block completion).
+    await Promise.race([
+      Promise.allSettled(pendingUploadsRef.current),
+      new Promise((r) => setTimeout(r, 20000)),
+    ]);
+
     const result = await api.completeInterview(interviewId);
     setLoading(false);
     
@@ -493,14 +607,14 @@ const Interview = () => {
                   </p>
                 ) : (
                   <p className="text-xs text-[#8C7A5C] font-semibold italic">
-                    {isSpeaking ? "Waiting for candidate response stream..." : "Listening... Start speaking clearly to generate NLP logs"}
+                    {isSpeaking ? "Waiting for you to finish the question..." : "Listening... start speaking and your words will appear here"}
                   </p>
                 )}
               </div>
 
               <div className="mt-4 px-3 py-2 rounded bg-blue-50 text-[#0066FF] text-[10px] font-semibold flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-[#0066FF] rounded-full animate-ping" />
-                AI is analyzing sentiment and technical keywords in real-time
+                Your response is being transcribed — AI evaluation runs after the interview
               </div>
             </div>
           </Card>
