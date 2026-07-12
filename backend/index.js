@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRouteHandler } from "uploadthing/express";
 import { uploadRouter } from "./uploadthing.js";
+import { getAIUsageTotals } from "./utils/ai.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +20,15 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust the reverse proxy / load balancer in front of the app so req.ip is the
+// real client (derived from X-Forwarded-For against this hop count) rather than
+// a client-spoofable header. Rate limiting keys on req.ip, so this must be set
+// correctly for it to be effective. Defaults to 1 (single proxy); override with
+// TRUST_PROXY (a hop count like "2", or a value such as "loopback"). Numeric
+// strings are passed as numbers.
+const trustProxy = process.env.TRUST_PROXY ?? '1';
+app.set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -45,8 +55,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded CVs publicly
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// NOTE: the local `uploads/` directory only holds transient temp files during
+// CV parsing (they are deleted immediately after). Permanent CVs live on the
+// upload provider (absolute URLs), so this directory is intentionally NOT
+// served publicly — doing so exposed temp CVs at predictable URLs.
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/vocalent';
 
@@ -85,6 +97,10 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     message: 'Vocalent API is running',
     database: states[mongoose.connection.readyState] || 'unknown',
+    // Cumulative AI spend is useful in dev/staging but not exposed publicly in
+    // production (it reveals usage volume). Per-interview cost lives on the
+    // authenticated interview record.
+    ...(process.env.NODE_ENV !== 'production' ? { aiUsage: getAIUsageTotals() } : {}),
   });
 });
 
